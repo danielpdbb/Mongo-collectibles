@@ -1,13 +1,13 @@
-package api
+package api //name of the package and how it will be called in other files
 
 import (
-	"net/http"
+	"net/http" // Go's standard library for HTTP stuff (you'll use http.StatusOK, http.StatusBadRequest, etc.)
 
-	"github.com/danielpdbb/Mongo-collectibles/internal/service"
-	"github.com/gin-gonic/gin"
+	"github.com/danielpdbb/Mongo-collectibles/internal/service" // My own package for business logic (like calculating rental prices and handling payments)
+	"github.com/gin-gonic/gin"                                  // Gin web framework for handling HTTP requests and responses
 )
 
-type QuoteRequest struct {
+type QuoteRequest struct { // Struct to hold the incoming JSON data for a quote request
 	Size string `json:"size"`
 	Days int    `json:"days"`
 }
@@ -21,19 +21,22 @@ func Checkout(c *gin.Context) {
 }
 
 func CreateQuote(c *gin.Context) {
-	var req QuoteRequest
+	var req QuoteRequest // variable to hold the incoming JSON data
 
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
+	//BindJSON = error checker for JSON
+
+	if err := c.BindJSON(&req); err != nil { //JSON to Go Data
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"}) //Convert Go Data to JSON and builds JSON object
 	}
 
 	price := service.CalculateRentalPrice(req.Size, req.Days)
 
-	c.JSON(http.StatusOK, gin.H{
+	c.JSON(http.StatusOK, gin.H{ //http.StatusOK = 200, gin.H creates a map for JSON
 		"total_price": price,
 	})
 }
+
+// THIS IS STILL TEMPORARY
 
 type PaymentRequest struct {
 	Amount int    `json:"amount"`
