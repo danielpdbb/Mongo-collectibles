@@ -1,91 +1,373 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>MongoCollectibles</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MongoCollectibles - Premium Collectible Rentals</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1a1a2e',
+            secondary: '#16213e',
+            accent: '#e94560',
+            gold: '#f4d03f'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    [x-cloak] { display: none !important; }
+    .card-hover:hover { transform: translateY(-8px); }
+    .gradient-bg { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 min-h-screen flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <div class="inline-block p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mb-4">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-        </svg>
-      </div>
-      <h1 class="text-3xl font-bold text-gray-800 mb-2">MongoCollectibles</h1>
-      <p class="text-gray-500">Rent premium collectibles today</p>
-    </div>
-
-    <!-- Form -->
-    <form id="quoteForm" class="space-y-6">
-      <!-- Size Selection -->
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-2">Collectible Size</label>
-        <select id="size" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors bg-white text-gray-700">
-          <option value="S">Small - Perfect for desktops</option>
-          <option value="M">Medium - Statement pieces</option>
-          <option value="L">Large - Premium collection</option>
-        </select>
-      </div>
-
-      <!-- Days Input -->
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-2">Rental Duration</label>
-        <div class="relative">
-          <input 
-            type="number" 
-            id="days" 
-            min="1" 
-            required 
-            placeholder="Enter number of days"
-            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors"
-          >
-          <span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></span>
+<body class="bg-gray-50 min-h-screen" x-data="catalogueApp()">
+  
+  <!-- Navigation -->
+  <nav class="gradient-bg text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-gem text-accent text-2xl"></i>
+          <a href="/" class="text-xl font-bold tracking-wide">MongoCollectibles</a>
+        </div>
+        
+        <div class="hidden md:flex items-center space-x-6">
+          <a href="/" class="hover:text-accent transition">Catalogue</a>
+          <a href="#pricing" class="hover:text-accent transition">Pricing</a>
         </div>
       </div>
+    </div>
+  </nav>
 
-      <!-- Submit Button -->
-      <button 
-        type="submit" 
-        class="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-      >
-        Get Your Quote
-      </button>
-    </form>
+  <!-- Hero Section -->
+  <section class="gradient-bg text-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        Rent Premium <span class="text-accent">MCU Collectibles</span>
+      </h1>
+      <p class="text-gray-300 text-lg max-w-2xl mx-auto mb-8">
+        Access rare statues, figurines, and collectibles without the full purchase price. 
+        Perfect for events, displays, or trying before you buy.
+      </p>
+      <a href="#catalogue" class="bg-accent hover:bg-red-600 px-8 py-3 rounded-lg font-semibold transition transform hover:scale-105 inline-block">
+        Browse Collection
+      </a>
+    </div>
+  </section>
 
-    <!-- Result Display -->
-    <div id="resultContainer" class="mt-6 hidden">
-      <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 text-center">
-        <p class="text-sm text-gray-600 mb-1">Your Total Price</p>
-        <h2 id="result" class="text-3xl font-bold text-green-600"></h2>
+  <!-- Pricing Info -->
+  <section id="pricing" class="py-12 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-bold text-center mb-8">Rental Pricing</h2>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="text-center p-6 bg-gray-50 rounded-xl">
+          <div class="text-3xl mb-2">🏆</div>
+          <h3 class="font-bold text-lg">Large (L)</h3>
+          <p class="text-2xl font-bold text-accent">₱10,000<span class="text-sm text-gray-500">/day</span></p>
+          <p class="text-gray-500 text-sm mt-2">Life-size statues & replicas</p>
+        </div>
+        <div class="text-center p-6 bg-gray-50 rounded-xl">
+          <div class="text-3xl mb-2">⭐</div>
+          <h3 class="font-bold text-lg">Medium (M)</h3>
+          <p class="text-2xl font-bold text-accent">₱5,000<span class="text-sm text-gray-500">/day</span></p>
+          <p class="text-gray-500 text-sm mt-2">1:4 Scale figures & statues</p>
+        </div>
+        <div class="text-center p-6 bg-gray-50 rounded-xl">
+          <div class="text-3xl mb-2">✨</div>
+          <h3 class="font-bold text-lg">Small (S)</h3>
+          <p class="text-2xl font-bold text-accent">₱1,000<span class="text-sm text-gray-500">/day</span></p>
+          <p class="text-gray-500 text-sm mt-2">Mini replicas & accessories</p>
+        </div>
       </div>
+      <p class="text-center text-gray-500 mt-4 text-sm">
+        <i class="fas fa-info-circle mr-1"></i>
+        Rentals of 7+ days get standard rate. Shorter rentals have 2x premium rate.
+      </p>
+    </div>
+  </section>
+
+  <!-- Catalogue Section -->
+  <section id="catalogue" class="py-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-3xl font-bold text-center mb-8">Our Collection</h2>
+
+      <!-- Filters -->
+      <div class="flex flex-wrap justify-center gap-2 mb-8">
+        <button @click="filter = 'all'" 
+                :class="filter === 'all' ? 'bg-accent text-white' : 'bg-white text-gray-700'"
+                class="px-4 py-2 rounded-full border transition">
+          All
+        </button>
+        <button @click="filter = 'L'" 
+                :class="filter === 'L' ? 'bg-accent text-white' : 'bg-white text-gray-700'"
+                class="px-4 py-2 rounded-full border transition">
+          Large
+        </button>
+        <button @click="filter = 'M'" 
+                :class="filter === 'M' ? 'bg-accent text-white' : 'bg-white text-gray-700'"
+                class="px-4 py-2 rounded-full border transition">
+          Medium
+        </button>
+        <button @click="filter = 'S'" 
+                :class="filter === 'S' ? 'bg-accent text-white' : 'bg-white text-gray-700'"
+                class="px-4 py-2 rounded-full border transition">
+          Small
+        </button>
+      </div>
+
+      <!-- Loading State -->
+      <div x-show="loading" class="text-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent mx-auto"></div>
+        <p class="mt-4 text-gray-500">Loading collectibles...</p>
+      </div>
+
+      <!-- Products Grid -->
+      <div x-show="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <template x-for="product in filteredProducts" :key="product.id">
+          <div class="bg-white rounded-xl shadow-lg overflow-hidden card-hover transition duration-300 cursor-pointer"
+               @click="viewProduct(product)">
+            <div class="relative">
+              <img :src="product.imageURL" :alt="product.name" 
+                   class="w-full h-48 object-cover"
+                   onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'">
+              <span class="absolute top-3 right-3 bg-primary text-white px-2 py-1 rounded text-xs font-bold"
+                    x-text="product.size"></span>
+              <span x-show="product.available_units === 0" 
+                    class="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded text-xs">
+                Out of Stock
+              </span>
+            </div>
+            <div class="p-4">
+              <h3 class="font-semibold text-gray-800 mb-2 line-clamp-2" x-text="product.name"></h3>
+              <div class="flex justify-between items-center">
+                <span class="text-accent font-bold">
+                  ₱<span x-text="product.price_per_day.toLocaleString()"></span>/day
+                </span>
+                <span class="text-sm text-gray-500">
+                  <i class="fas fa-box mr-1"></i><span x-text="product.available_units"></span> available
+                </span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Empty State -->
+      <div x-show="!loading && filteredProducts.length === 0" class="text-center py-12">
+        <i class="fas fa-box-open text-5xl text-gray-300 mb-4"></i>
+        <p class="text-gray-500">No products found for this filter.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Product Modal -->
+  <div x-show="showModal" x-cloak
+       class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+       @click.self="showModal = false">
+    <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" @click.stop>
+      <template x-if="selectedProduct">
+        <div>
+          <div class="relative">
+            <img :src="selectedProduct.imageURL" :alt="selectedProduct.name" 
+                 class="w-full h-64 object-cover"
+                 onerror="this.src='https://via.placeholder.com/600x400?text=No+Image'">
+            <button @click="showModal = false" 
+                    class="absolute top-4 right-4 bg-white/80 hover:bg-white p-2 rounded-full">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="p-6">
+            <h2 class="text-2xl font-bold mb-2" x-text="selectedProduct.name"></h2>
+            <div class="flex items-center gap-4 mb-4">
+              <span class="bg-primary text-white px-3 py-1 rounded text-sm" x-text="'Size: ' + selectedProduct.size"></span>
+              <span class="text-gray-500">
+                <i class="fas fa-box mr-1"></i><span x-text="selectedProduct.available_units"></span> units available
+              </span>
+            </div>
+
+            <!-- Rental Form -->
+            <div class="border-t pt-4">
+              <h3 class="font-semibold mb-4">Calculate Your Rental</h3>
+              
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label class="block text-sm text-gray-600 mb-1">Store Location</label>
+                  <select x-model="rental.storeId" class="w-full border rounded-lg p-2">
+                    <template x-for="store in stores" :key="store.ID">
+                      <option :value="store.ID" x-text="store.Name"></option>
+                    </template>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-sm text-gray-600 mb-1">Rental Days</label>
+                  <input type="number" x-model="rental.days" min="1" max="30" 
+                         class="w-full border rounded-lg p-2">
+                </div>
+              </div>
+
+              <div class="mb-4">
+                <label class="block text-sm text-gray-600 mb-1">Quantity</label>
+                <input type="number" x-model="rental.quantity" min="1" :max="selectedProduct.available_units" 
+                       class="w-full border rounded-lg p-2">
+              </div>
+
+              <button @click="getQuote()" 
+                      :disabled="quoteLoading"
+                      class="w-full bg-accent hover:bg-red-600 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50">
+                <span x-show="!quoteLoading">Get Price Quote</span>
+                <span x-show="quoteLoading"><i class="fas fa-spinner fa-spin mr-2"></i>Calculating...</span>
+              </button>
+
+              <!-- Quote Result -->
+              <div x-show="quote" class="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <p class="text-sm text-gray-600">Unit Price: ₱<span x-text="quote?.unit_price?.toLocaleString()"></span></p>
+                    <p class="text-sm text-gray-600">
+                      <span x-text="quote?.quantity"></span> units × <span x-text="quote?.days"></span> days
+                    </p>
+                    <p class="text-sm text-gray-500">From: <span x-text="quote?.warehouse"></span></p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-2xl font-bold text-accent">₱<span x-text="quote?.total_price?.toLocaleString()"></span></p>
+                  </div>
+                </div>
+                <button @click="proceedToCheckout()" 
+                        class="w-full mt-4 bg-primary hover:bg-secondary text-white py-2 rounded-lg transition">
+                  Proceed to Checkout
+                </button>
+              </div>
+
+              <!-- Error Message -->
+              <div x-show="quoteError" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600">
+                <i class="fas fa-exclamation-circle mr-2"></i><span x-text="quoteError"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 
+  <!-- Footer -->
+  <footer class="gradient-bg text-white py-8 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <div class="flex items-center justify-center space-x-2 mb-4">
+        <i class="fas fa-gem text-accent"></i>
+        <span class="font-bold">MongoCollectibles</span>
+      </div>
+      <p class="text-gray-400 text-sm">&copy; 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
   <script>
-    document.getElementById("quoteForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
+    function catalogueApp() {
+      return {
+        products: [],
+        stores: [],
+        loading: true,
+        filter: 'all',
+        showModal: false,
+        selectedProduct: null,
+        rental: {
+          storeId: 1,
+          days: 7,
+          quantity: 1
+        },
+        quote: null,
+        quoteLoading: false,
+        quoteError: null,
 
-      const res = await fetch("/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          size: document.getElementById("size").value,
-          days: parseInt(document.getElementById("days").value)
-        })
-      });
+        async init() {
+          await this.loadProducts();
+          await this.loadStores();
+        },
 
-      const data = await res.json();
-      const resultContainer = document.getElementById("resultContainer");
-      const resultText = document.getElementById("result");
-      
-      resultText.innerText = "PHP " + data.total_price;
-      resultContainer.classList.remove("hidden");
-      
-      // Smooth scroll to result
-      resultContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
+        async loadProducts() {
+          this.loading = true;
+          try {
+            const res = await fetch('/catalogue');
+            this.products = await res.json();
+          } catch (err) {
+            console.error('Failed to load products:', err);
+          }
+          this.loading = false;
+        },
+
+        async loadStores() {
+          try {
+            const res = await fetch('/stores');
+            this.stores = await res.json();
+            if (this.stores.length > 0) {
+              this.rental.storeId = this.stores[0].ID;
+            }
+          } catch (err) {
+            console.error('Failed to load stores:', err);
+          }
+        },
+
+        get filteredProducts() {
+          if (this.filter === 'all') return this.products;
+          return this.products.filter(p => p.size === this.filter);
+        },
+
+        viewProduct(product) {
+          this.selectedProduct = product;
+          this.quote = null;
+          this.quoteError = null;
+          this.rental.quantity = 1;
+          this.showModal = true;
+        },
+
+        async getQuote() {
+          this.quoteLoading = true;
+          this.quote = null;
+          this.quoteError = null;
+
+          try {
+            const res = await fetch('/quote', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                collectible_id: this.selectedProduct.id,
+                store_id: parseInt(this.rental.storeId),
+                days: parseInt(this.rental.days),
+                quantity: parseInt(this.rental.quantity)
+              })
+            });
+
+            const data = await res.json();
+
+            if (data.available === false) {
+              this.quoteError = data.message;
+            } else {
+              this.quote = data;
+            }
+          } catch (err) {
+            this.quoteError = 'Failed to get quote. Please try again.';
+          }
+
+          this.quoteLoading = false;
+        },
+
+        proceedToCheckout() {
+          // Save order data for checkout page
+          localStorage.setItem('checkoutData', JSON.stringify({
+            product: this.selectedProduct,
+            quote: this.quote,
+            rental: this.rental
+          }));
+          window.location.href = '/checkout';
+        }
+      }
+    }
   </script>
 </body>
 </html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details - MongoCollectibles</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1a1a2e',
+            secondary: '#16213e',
+            accent: '#e94560'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .gradient-bg { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen" x-data="productApp()">
+  
+  <!-- Navigation -->
+  <nav class="gradient-bg text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <div class="flex items-center space-x-3">
+          <i class="fas fa-gem text-accent text-2xl"></i>
+          <a href="/" class="text-xl font-bold tracking-wide">MongoCollectibles</a>
+        </div>
+        <a href="/" class="hover:text-accent transition">
+          <i class="fas fa-arrow-left mr-2"></i>Back to Catalogue
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Product Detail -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+      <div class="md:flex">
+        <div class="md:w-1/2">
+          <img :src="product?.imageURL" :alt="product?.name" 
+               class="w-full h-96 object-cover"
+               onerror="this.src='https://via.placeholder.com/600x400?text=No+Image'">
+        </div>
+        <div class="md:w-1/2 p-8">
+          <span class="inline-block bg-primary text-white px-3 py-1 rounded text-sm mb-4" x-text="'Size: ' + product?.size"></span>
+          <h1 class="text-3xl font-bold mb-4" x-text="product?.name"></h1>
+          <p class="text-gray-600 mb-6">
+            Premium collectible available for rent. Perfect for events, photo shoots, or personal display.
+          </p>
+          
+          <div class="flex items-center gap-4 mb-6">
+            <span class="text-2xl font-bold text-accent">₱<span x-text="product?.price_per_day?.toLocaleString()"></span>/day</span>
+            <span class="text-gray-500">
+              <i class="fas fa-box mr-1"></i><span x-text="product?.available_units"></span> available
+            </span>
+          </div>
+
+          <a href="/" class="inline-block bg-accent hover:bg-red-600 text-white px-8 py-3 rounded-lg font-semibold transition">
+            <i class="fas fa-shopping-cart mr-2"></i>Rent Now
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    function productApp() {
+      return {
+        product: null,
+
+        async init() {
+          // Get product ID from URL
+          const pathParts = window.location.pathname.split('/');
+          const productId = pathParts[pathParts.length - 1];
+
+          // Fetch product from catalogue
+          try {
+            const res = await fetch('/catalogue');
+            const products = await res.json();
+            this.product = products.find(p => p.id == productId);
+          } catch (err) {
+            console.error('Failed to load product:', err);
+          }
+        }
+      }
+    }
+  </script>
+</body>
+</html>

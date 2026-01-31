@@ -1,67 +1,141 @@
-package api //name of the package and how it will be called in other files
+package api
 
 import (
-	"net/http" // Go's standard library for HTTP stuff (you'll use http.StatusOK, http.StatusBadRequest, etc.)
+	"net/http"
 
-	"github.com/danielpdbb/Mongo-collectibles/internal/service" // My own package for business logic (like calculating rental prices and handling payments)
-	"github.com/gin-gonic/gin"                                  // Gin web framework for handling HTTP requests and responses
+	"github.com/danielpdbb/Mongo-collectibles/internal/domain"
+	"github.com/danielpdbb/Mongo-collectibles/internal/repository"
+	"github.com/danielpdbb/Mongo-collectibles/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
-type QuoteRequest struct { // Struct to hold the incoming JSON data for a quote request
-	Size string `json:"size"`
-	Days int    `json:"days"`
-}
+// ========================================
+// PAGE HANDLERS (serve HTML files)
+// ========================================
 
+// ShowHome serves the main catalogue page
 func ShowHome(c *gin.Context) {
 	c.File("./web/index.html")
 }
 
-func Checkout(c *gin.Context) {
+// ShowCheckout serves the checkout page
+func ShowCheckout(c *gin.Context) {
 	c.File("./web/checkout.html")
 }
 
-func CreateQuote(c *gin.Context) {
-	var req QuoteRequest // variable to hold the incoming JSON data
+// ShowProduct serves the product detail page
+func ShowProduct(c *gin.Context) {
+	c.File("./web/product-detail.html")
+}
 
-	//BindJSON = error checker for JSON
+// ========================================
+// API HANDLERS (return JSON)
+// ========================================
 
-	if err := c.BindJSON(&req); err != nil { //JSON to Go Data
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid Request"}) //Convert Go Data to JSON and builds JSON object
+// GetCatalogue returns all products with their availability count
+// GET /catalogue
+func GetCatalogue(c *gin.Context) {
+	var collectibles []domain.Collectible
+	repository.DB.Find(&collectibles)
+
+	// Build response with availability info
+	type ProductResponse struct {
+		ID             uint   `json:"id"`
+		Name           string `json:"name"`
+		Size           string `json:"size"`
+		ImageURL       string `json:"imageURL"`
+		AvailableUnits int64  `json:"available_units"`
+		PricePerDay    int    `json:"price_per_day"`
 	}
 
-	price := service.CalculateRentalPrice(req.Size, req.Days)
+	var products []ProductResponse
+	for _, c := range collectibles {
+		available := service.CountAvailableUnits(c.ID)
+		pricePerDay := service.CalculateRentalPrice(c.Size, 7) / 7 // Base daily rate
 
-	c.JSON(http.StatusOK, gin.H{ //http.StatusOK = 200, gin.H creates a map for JSON
-		"total_price": price,
-	})
+		products = append(products, ProductResponse{
+			ID:             c.ID,
+			Name:           c.Name,
+			Size:           c.Size,
+			ImageURL:       c.ImageURL,
+			AvailableUnits: available,
+			PricePerDay:    pricePerDay,
+		})
+	}
+
+	c.JSON(http.StatusOK, products)
 }
 
-// THIS IS STILL TEMPORARY
-
-type PaymentRequest struct {
-	Amount int    `json:"amount"`
-	Method string `json:"method"`
-	Name   string `json:"name"`
-	Email  string `json:"email"`
+// GetStores returns all available stores
+// GET /stores
+func GetStores(c *gin.Context) {
+	var stores []domain.Store
+	repository.DB.Find(&stores)
+	c.JSON(http.StatusOK, stores)
 }
 
-func CreatePayment(c *gin.Context) {
-	var req PaymentRequest
+// CreateQuote calculates a rental price quote
+// POST /quote
+// Request body: { "collectible_id": 1, "store_id": 1, "days": 7, "quantity": 1 }
+func CreateQuote(c *gin.Context) {
+	var req struct {
+		CollectibleID uint `json:"collectible_id" binding:"required"`
+		StoreID       uint `json:"store_id" binding:"required"`
+		Days          int  `json:"days" binding:"required,min=1"`
+		Quantity      int  `json:"quantity" binding:"required,min=1"`
+	}
 
-	if err := c.BindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payment request"})
+	// Parse and validate request
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request: " + err.Error()})
 		return
 	}
 
-	ref := service.CreatePayMongoPayment(service.PaymentRequest{
-		Amount: req.Amount,
-		Method: req.Method,
-		Name:   req.Name,
-		Email:  req.Email,
-	})
+	// Check available stock
+	availableCount := service.CountAvailableUnits(req.CollectibleID)
+	if int64(req.Quantity) > availableCount {
+		c.JSON(http.StatusOK, gin.H{
+			"available":       false,
+			"message":         "Not enough units available",
+			"available_units": availableCount,
+		})
+		return
+	}
 
+	// Find nearest available unit (without reserving it)
+	unit, ok := service.FindNearestAvailableUnit(req.CollectibleID, req.StoreID)
+	if !ok {
+		c.JSON(http.StatusOK, gin.H{
+			"available": false,
+			"message":   "No units available for this product",
+		})
+		return
+	}
+
+	// Get product info for pricing
+	var collectible domain.Collectible
+	if err := repository.DB.First(&collectible, req.CollectibleID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		return
+	}
+
+	// Get warehouse info
+	var warehouse domain.Warehouse
+	repository.DB.First(&warehouse, unit.WarehouseID)
+
+	// Calculate price
+	unitPrice := service.CalculateRentalPrice(collectible.Size, req.Days)
+	totalPrice := unitPrice * req.Quantity
+
+	// Return quote
 	c.JSON(http.StatusOK, gin.H{
-		"status":    "payment_created",
-		"reference": ref,
+		"available":       true,
+		"collectible":     collectible,
+		"warehouse":       warehouse.Name,
+		"unit_price":      unitPrice,
+		"quantity":        req.Quantity,
+		"days":            req.Days,
+		"total_price":     totalPrice,
+		"available_units": availableCount,
 	})
 }
