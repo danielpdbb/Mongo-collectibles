@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - MongoCollectibles</title>
+  
+  <style>
+    /* =============================================
+       SIMPLE CSS FOR REGISTER PAGE
+       ============================================= */
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------- NAVIGATION ---------- */
+    nav {
+      background-color: #1a1a2e;
+      color: white;
+      padding: 15px 20px;
+    }
+
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    /* ---------- MAIN CONTENT ---------- */
+    main {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    /* ---------- REGISTER CARD ---------- */
+    .register-card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      padding: 40px;
+      width: 100%;
+      max-width: 450px;
+    }
+
+    .register-card h1 {
+      text-align: center;
+      margin-bottom: 10px;
+      color: #1a1a2e;
+    }
+
+    .register-card p.subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    /* ---------- FORM ELEMENTS ---------- */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+      font-size: 14px;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* ---------- BUTTONS ---------- */
+    .btn-primary {
+      width: 100%;
+      background-color: #e94560;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .btn-primary:hover {
+      background-color: #d63050;
+    }
+
+    .btn-primary:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* ---------- MESSAGES ---------- */
+    .error-message {
+      background-color: #ffebee;
+      border: 1px solid #ef9a9a;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-message {
+      background-color: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    /* ---------- LINKS ---------- */
+    .login-link {
+      text-align: center;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
+
+    .login-link a {
+      color: #e94560;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .login-link a:hover {
+      text-decoration: underline;
+    }
+
+    /* ---------- FOOTER ---------- */
+    footer {
+      background-color: #1a1a2e;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 500px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAVIGATION -->
+  <nav>
+    <a href="/">🎭 MongoCollectibles</a>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main>
+    <div class="register-card">
+      <h1>Create Account</h1>
+      <p class="subtitle">Join MongoCollectibles today</p>
+
+      <!-- Error/Success Messages -->
+      <div id="errorMessage" class="error-message"></div>
+      <div id="successMessage" class="success-message"></div>
+
+      <!-- REGISTER FORM -->
+      <form id="registerForm" onsubmit="handleRegister(event)">
+        
+        <div class="form-group">
+          <label for="name">Full Name</label>
+          <input 
+            type="text" 
+            id="name" 
+            name="name" 
+            placeholder="John Doe"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input 
+            type="email" 
+            id="email" 
+            name="email" 
+            placeholder="you@example.com"
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone Number (Optional)</label>
+          <input 
+            type="tel" 
+            id="phone" 
+            name="phone" 
+            placeholder="09XX XXX XXXX"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            placeholder="Create a password"
+            minlength="6"
+            required
+          >
+          <p class="hint">Minimum 6 characters</p>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password</label>
+          <input 
+            type="password" 
+            id="confirmPassword" 
+            name="confirmPassword" 
+            placeholder="Confirm your password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="btn-primary" id="submitBtn">
+          Create Account
+        </button>
+
+      </form>
+
+      <!-- Login Link -->
+      <div class="login-link">
+        Already have an account? <a href="/login">Sign in</a>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 MongoCollectibles. All rights reserved.</p>
+  </footer>
+
+  <!-- 
+    =============================================
+    JAVASCRIPT - Registration Form Handling
+    =============================================
+  -->
+  <script>
+    // Check if user is already logged in
+    document.addEventListener('DOMContentLoaded', function() {
+      const token = localStorage.getItem('token');
+      if (token) {
+        // User already has a token, redirect to home
+        window.location.href = '/';
+      }
+    });
+
+    // Handle form submission
+    async function handleRegister(event) {
+      // Prevent default form submission
+      event.preventDefault();
+
+      // Get form elements
+      const submitBtn = document.getElementById('submitBtn');
+      const errorDiv = document.getElementById('errorMessage');
+      const successDiv = document.getElementById('successMessage');
+
+      // Get form values
+      const name = document.getElementById('name').value;
+      const email = document.getElementById('email').value;
+      const phone = document.getElementById('phone').value;
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+
+      // Reset messages
+      errorDiv.style.display = 'none';
+      successDiv.style.display = 'none';
+
+      // Validate passwords match
+      if (password !== confirmPassword) {
+        errorDiv.textContent = 'Passwords do not match';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      // Validate password length
+      if (password.length < 6) {
+        errorDiv.textContent = 'Password must be at least 6 characters';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      // Disable button while processing
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account...';
+
+      try {
+        // Send registration request to backend
+        const response = await fetch('/api/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ name, email, phone, password })
+        });
+
+        // Parse response
+        const data = await response.json();
+
+        if (data.success) {
+          // Registration successful!
+          
+          // Store token (auto-login after registration)
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+
+          // Show success message
+          successDiv.textContent = 'Account created successfully! Redirecting...';
+          successDiv.style.display = 'block';
+
+          // Redirect to home page
+          setTimeout(() => {
+            window.location.href = '/';
+          }, 1000);
+
+        } else {
+          // Registration failed
+          errorDiv.textContent = data.error || 'Registration failed. Please try again.';
+          errorDiv.style.display = 'block';
+          
+          // Re-enable button
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Account';
+        }
+
+      } catch (error) {
+        // Network error
+        console.error('Registration error:', error);
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
+        
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+      }
+    }
+  </script>
+
+</body>
+</html>

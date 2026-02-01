@@ -34,8 +34,55 @@
       padding: 15px 20px;
     }
 
+    nav .nav-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
     nav h1 {
       font-size: 24px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+    }
+
+    .auth-links {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .nav-link {
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      background: none;
+      border: none;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .nav-link:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+
+    .nav-link-primary {
+      background-color: #e94560;
+    }
+
+    .nav-link-primary:hover {
+      background-color: #d63050;
+    }
+
+    .welcome-text {
+      color: #ccc;
+      font-size: 14px;
     }
 
     /* ---------- HEADER ---------- */
@@ -361,7 +408,28 @@
 
   <!-- NAVIGATION BAR -->
   <nav>
-    <h1>🎭 MongoCollectibles</h1>
+    <div class="nav-content">
+      <h1>🎭 MongoCollectibles</h1>
+      
+      <!-- Auth Links -->
+      <div class="nav-links">
+        <!-- Show when NOT logged in -->
+        <template x-if="!isLoggedIn">
+          <div class="auth-links">
+            <a href="/login" class="nav-link">Login</a>
+            <a href="/register" class="nav-link nav-link-primary">Register</a>
+          </div>
+        </template>
+        
+        <!-- Show when logged in -->
+        <template x-if="isLoggedIn">
+          <div class="auth-links">
+            <span class="welcome-text">Hello, <span x-text="user?.name || 'User'"></span></span>
+            <button @click="logout()" class="nav-link">Logout</button>
+          </div>
+        </template>
+      </div>
+    </div>
   </nav>
 
   <!-- HEADER SECTION -->
@@ -627,14 +695,102 @@
         quoteError: null,
 
         // ========================================
+        // AUTHENTICATION STATE
+        // ========================================
+        
+        // Is the user logged in?
+        isLoggedIn: false,
+        
+        // Current user info (from localStorage)
+        user: null,
+        
+        // JWT token (from localStorage)
+        token: null,
+
+        // ========================================
         // LIFECYCLE (Runs when page loads)
         // ========================================
         
         async init() {
           // This function runs automatically when Alpine initializes
           console.log('App initialized! Fetching data...');
+          
+          // Check if user is logged in (verifies token with server)
+          await this.checkAuth();
+          
           await this.loadProducts();
           await this.loadStores();
+        },
+
+        // ========================================
+        // AUTHENTICATION METHODS
+        // ========================================
+        
+        // Check if user has a valid token stored AND verify with server
+        async checkAuth() {
+          const token = localStorage.getItem('token');
+          
+          // No token = not logged in
+          if (!token) {
+            this.isLoggedIn = false;
+            this.user = null;
+            this.token = null;
+            return;
+          }
+          
+          // Token exists - verify it's still valid with the server
+          try {
+            const response = await fetch('/api/me', {
+              headers: {
+                'Authorization': 'Bearer ' + token
+              }
+            });
+            
+            if (response.ok) {
+              // Token is valid! Get fresh user data from server
+              const data = await response.json();
+              this.token = token;
+              this.user = data.user;
+              this.isLoggedIn = true;
+              
+              // Update localStorage with fresh data
+              localStorage.setItem('user', JSON.stringify(data.user));
+              console.log('Token verified. User:', this.user.name);
+              
+            } else {
+              // Token is invalid or expired - clear everything
+              console.log('Token invalid or expired. Logging out.');
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              this.isLoggedIn = false;
+              this.user = null;
+              this.token = null;
+            }
+            
+          } catch (error) {
+            // Network error - fall back to localStorage (offline support)
+            console.error('Could not verify token:', error);
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              this.token = token;
+              this.user = JSON.parse(userStr);
+              this.isLoggedIn = true;
+            }
+          }
+        },
+        
+        // Logout the user
+        logout() {
+          // Clear localStorage
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          
+          // Update state
+          this.isLoggedIn = false;
+          this.user = null;
+          this.token = null;
+          
+          console.log('User logged out');
         },
 
         // ========================================

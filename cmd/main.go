@@ -23,6 +23,7 @@ func main() {
 		&domain.Collectible{},
 		&domain.CollectibleUnit{},
 		&domain.WarehouseDistance{},
+		&domain.User{}, // User table for authentication
 	)
 
 	// ⚠️ Seed data - Run ONCE to populate database, then comment out
@@ -34,6 +35,8 @@ func main() {
 	r.GET("/", api.ShowHome)               // Home page - product catalogue
 	r.GET("/checkout", api.ShowCheckout)   // Checkout page
 	r.GET("/product/:id", api.ShowProduct) // Product detail page
+	r.GET("/login", api.ShowLogin)         // Login page
+	r.GET("/register", api.ShowRegister)   // Register page
 
 	// --------------------
 	// API ROUTES (return JSON)
@@ -41,6 +44,13 @@ func main() {
 	r.GET("/catalogue", api.GetCatalogue) // Get all products with availability
 	r.GET("/stores", api.GetStores)       // Get all stores
 	r.POST("/quote", api.CreateQuote)     // Calculate rental price quote
+
+	// --------------------
+	// AUTH API ROUTES
+	// --------------------
+	r.POST("/api/register", api.Register)                    // Create new account
+	r.POST("/api/login", api.Login)                          // Login and get token
+	r.GET("/api/me", api.AuthRequired(), api.GetCurrentUser) // Get current user (requires auth)
 
 	// Start server
 	log.Println("🚀 Server starting on http://localhost:8080")
