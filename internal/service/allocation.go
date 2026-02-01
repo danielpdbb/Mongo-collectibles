@@ -56,7 +56,7 @@ func AllocateNearestAvailableUnit(collectibleID uint, storeID uint) (domain.Coll
 func CountAvailableUnits(collectibleID uint) int64 {
 	var count int64
 	repository.DB.Model(&domain.CollectibleUnit{}).
-		Where("collectible_id = ? AND is_available = true", collectibleID).
+		Where("collectible_id = ? AND is_available = ? ", collectibleID, true).
 		Count(&count)
 	return count
 }
