@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Rentals - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037',
+              950: '#0a2920',
+            },
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>[x-cloak] { display: none !important; }</style>
+</head>
+
+<!--
+  =============================================
+  MY RENTALS PAGE
+  =============================================
+  Shows user's rental history with status and cancel option.
+-->
+<body x-data="rentalsApp()" class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        <a href="/" class="text-white/80 hover:text-white flex items-center gap-2 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to Catalogue
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- ==================== LOGIN REQUIRED STATE ==================== -->
+    <div x-show="!isLoggedIn && !checkingAuth" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🔒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+        <p class="text-gray-600 mb-8">You need to be logged in to view your rentals.</p>
+        <div class="flex gap-4 justify-center">
+          <a href="/login" class="bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            Login
+          </a>
+          <a href="/register" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors">
+            Register
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LOADING STATE ==================== -->
+    <div x-show="checkingAuth || loading" class="text-center py-16">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Loading...</p>
+    </div>
+
+    <!-- ==================== RENTALS LIST ==================== -->
+    <div x-show="isLoggedIn && !checkingAuth && !loading" x-cloak>
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">My Rentals</h1>
+
+      <!-- ==================== EMPTY STATE ==================== -->
+      <div x-show="rentals.length === 0" class="text-center py-16">
+        <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+          <div class="text-6xl mb-6">📦</div>
+          <h2 class="text-2xl font-bold text-gray-800 mb-2">No rentals yet</h2>
+          <p class="text-gray-600 mb-8">You haven't rented any collectibles yet. Browse our catalogue to get started!</p>
+          <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            Browse Catalogue
+          </a>
+        </div>
+      </div>
+
+      <!-- ==================== RENTAL CARDS ==================== -->
+      <div x-show="rentals.length > 0" class="space-y-4">
+        
+        <template x-for="rental in rentals" :key="rental.id">
+          
+          <!-- Rental Card -->
+          <div class="bg-white rounded-2xl shadow-sm p-6 hover:shadow-md transition-shadow">
+            <div class="flex flex-col sm:flex-row gap-4">
+              
+              <!-- Image -->
+              <img 
+                :src="rental.image_url" 
+                :alt="rental.collectible"
+                onerror="this.src='https://via.placeholder.com/80?text=No+Image'"
+                class="w-24 h-24 object-cover rounded-xl flex-shrink-0">
+              
+              <!-- Details -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-800 text-lg" x-text="rental.collectible"></h3>
+                <div class="mt-2 space-y-1 text-sm text-gray-600">
+                  <p>
+                    <span class="inline-block bg-gray-100 px-2 py-0.5 rounded text-xs font-medium" x-text="rental.size"></span>
+                    <span class="ml-2"><span x-text="rental.quantity"></span> unit(s) × <span x-text="rental.days"></span> days</span>
+                  </p>
+                  <p class="text-brand-700">📍 Pickup: <span x-text="rental.store"></span></p>
+                  <p class="text-gray-400 text-xs">
+                    <span x-text="formatDate(rental.start_date)"></span> → 
+                    <span x-text="formatDate(rental.end_date)"></span>
+                  </p>
+                </div>
+              </div>
+              
+              <!-- Status and Price -->
+              <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-3">
+                <div class="text-right">
+                  <p class="text-xl font-bold text-accent-500">₱<span x-text="rental.total_price?.toLocaleString()"></span></p>
+                  
+                  <!-- Status Badge with conditional styling -->
+                  <span 
+                    class="inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold"
+                    :class="{
+                      'bg-green-100 text-green-700': rental.status === 'active',
+                      'bg-blue-100 text-blue-700': rental.status === 'completed',
+                      'bg-red-100 text-red-700': rental.status === 'cancelled'
+                    }"
+                    x-text="rental.status.charAt(0).toUpperCase() + rental.status.slice(1)">
+                  </span>
+                </div>
+                
+                <!-- Cancel Button (only for active rentals) -->
+                <button 
+                  x-show="rental.status === 'active'"
+                  @click="cancelRental(rental.id)"
+                  class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                  Cancel
+                </button>
+              </div>
+              
+            </div>
+          </div>
+          
+        </template>
+        
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    function rentalsApp() {
+      return {
+        // ========================================
+        // DATA
+        // ========================================
+        
+        rentals: [],            // User's rental history
+        loading: false,
+        
+        // Auth state
+        isLoggedIn: false,
+        user: null,
+        token: null,
+        checkingAuth: true,
+
+        // ========================================
+        // LIFECYCLE - Runs on page load
+        // ========================================
+        
+        async init() {
+          await this.checkAuth();
+          if (this.isLoggedIn) {
+            await this.loadRentals();
+          }
+        },
+
+        // ========================================
+        // AUTHENTICATION
+        // ========================================
+        
+        // Verify token with server
+        async checkAuth() {
+          this.checkingAuth = true;
+          const token = localStorage.getItem('token');
+          
+          if (!token) {
+            this.isLoggedIn = false;
+            this.checkingAuth = false;
+            return;
+          }
+          
+          try {
+            const response = await fetch('/api/me', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.token = token;
+              this.user = data.user;
+              this.isLoggedIn = true;
+            } else {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              this.isLoggedIn = false;
+            }
+          } catch (error) {
+            console.error('Auth check failed:', error);
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              this.token = token;
+              this.user = JSON.parse(userStr);
+              this.isLoggedIn = true;
+            }
+          }
+          
+          this.checkingAuth = false;
+        },
+
+        // ========================================
+        // DATA LOADING
+        // ========================================
+        
+        // Fetch user's rentals from API
+        async loadRentals() {
+          this.loading = true;
+          try {
+            const response = await fetch('/api/rentals', {
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            const data = await response.json();
+            if (data.success) {
+              this.rentals = data.rentals || [];
+            }
+          } catch (error) {
+            console.error('Failed to load rentals:', error);
+          }
+          this.loading = false;
+        },
+
+        // ========================================
+        // ACTIONS
+        // ========================================
+        
+        // Cancel a rental and return units to inventory
+        async cancelRental(rentalId) {
+          if (!confirm('Are you sure you want to cancel this rental?')) {
+            return;
+          }
+
+          try {
+            const response = await fetch(`/api/rentals/${rentalId}/cancel`, {
+              method: 'POST',
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+              alert('Rental cancelled successfully');
+              await this.loadRentals(); // Refresh the list
+            } else {
+              alert('Failed to cancel: ' + (data.error || 'Unknown error'));
+            }
+          } catch (error) {
+            console.error('Cancel failed:', error);
+            alert('Failed to cancel rental');
+          }
+        },
+
+        // ========================================
+        // HELPERS
+        // ========================================
+        
+        // Format date for display
+        formatDate(dateStr) {
+          if (!dateStr) return 'N/A';
+          const date = new Date(dateStr);
+          return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          });
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>

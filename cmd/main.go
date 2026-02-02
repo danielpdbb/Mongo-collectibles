@@ -23,7 +23,9 @@ func main() {
 		&domain.Collectible{},
 		&domain.CollectibleUnit{},
 		&domain.WarehouseDistance{},
-		&domain.User{}, // User table for authentication
+		&domain.User{},       // User table for authentication
+		&domain.Rental{},     // Rental orders
+		&domain.RentalUnit{}, // Allocated units per rental
 	)
 
 	// ⚠️ Seed data - Run ONCE to populate database, then comment out
@@ -34,6 +36,7 @@ func main() {
 	// --------------------
 	r.GET("/", api.ShowHome)               // Home page - product catalogue
 	r.GET("/checkout", api.ShowCheckout)   // Checkout page
+	r.GET("/rentals", api.ShowRentals)     // User's rentals page
 	r.GET("/product/:id", api.ShowProduct) // Product detail page
 	r.GET("/login", api.ShowLogin)         // Login page
 	r.GET("/register", api.ShowRegister)   // Register page
@@ -51,6 +54,14 @@ func main() {
 	r.POST("/api/register", api.Register)                    // Create new account
 	r.POST("/api/login", api.Login)                          // Login and get token
 	r.GET("/api/me", api.AuthRequired(), api.GetCurrentUser) // Get current user (requires auth)
+
+	// --------------------
+	// RENTAL API ROUTES (all require authentication)
+	// --------------------
+	r.POST("/api/rentals", api.AuthRequired(), api.CreateRental)                   // Create new rental
+	r.GET("/api/rentals", api.AuthRequired(), api.GetMyRentals)                    // Get user's rentals
+	r.GET("/api/rentals/:id", api.AuthRequired(), api.GetRental)                   // Get specific rental
+	r.POST("/api/rentals/:id/cancel", api.AuthRequired(), api.CancelRentalHandler) // Cancel rental
 
 	// Start server
 	log.Println("🚀 Server starting on http://localhost:8080")

@@ -4,428 +4,235 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Checkout - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   
-  <style>
-    /* Simple CSS - matching index.html style */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
-      color: #333;
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ---------- NAVIGATION ---------- */
-    nav {
-      background-color: #1a1a2e;
-      color: white;
-      padding: 15px 20px;
-    }
-
-    nav .nav-content {
-      max-width: 900px;
-      margin: 0 auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    nav h1 {
-      font-size: 24px;
-    }
-
-    nav a {
-      color: white;
-      text-decoration: none;
-    }
-
-    nav a:hover {
-      color: #e94560;
-    }
-
-    /* ---------- MAIN CONTENT ---------- */
-    main {
-      flex: 1;
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 20px;
-      width: 100%;
-    }
-
-    h1 {
-      margin-bottom: 20px;
-    }
-
-    /* ---------- GRID LAYOUT ---------- */
-    .checkout-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 20px;
-    }
-
-    @media (max-width: 768px) {
-      .checkout-grid {
-        grid-template-columns: 1fr;
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037',
+              950: '#0a2920',
+            },
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
       }
     }
-
-    /* ---------- CARDS ---------- */
-    .card {
-      background-color: white;
-      border-radius: 8px;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      margin-bottom: 20px;
-    }
-
-    .card h2 {
-      margin-bottom: 15px;
-      font-size: 18px;
-    }
-
-    /* ---------- ORDER SUMMARY ---------- */
-    .order-item {
-      display: flex;
-      gap: 15px;
-    }
-
-    .order-item img {
-      width: 80px;
-      height: 80px;
-      object-fit: cover;
-      border-radius: 4px;
-    }
-
-    .order-item .details {
-      flex: 1;
-    }
-
-    .order-item .details h3 {
-      margin-bottom: 5px;
-    }
-
-    .order-item .details p {
-      color: #666;
-      font-size: 14px;
-    }
-
-    /* ---------- FORM ---------- */
-    .form-group {
-      margin-bottom: 15px;
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      font-size: 14px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: #e94560;
-    }
-
-    input:disabled {
-      background-color: #f5f5f5;
-      color: #888;
-    }
-
-    /* ---------- PRICE SUMMARY ---------- */
-    .price-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 10px;
-      font-size: 14px;
-    }
-
-    .price-row.total {
-      font-size: 18px;
-      font-weight: bold;
-      padding-top: 10px;
-      border-top: 1px solid #ddd;
-      margin-top: 10px;
-    }
-
-    .price-row.total .amount {
-      color: #e94560;
-    }
-
-    /* ---------- BUTTONS ---------- */
-    .btn-primary {
-      width: 100%;
-      background-color: #e94560;
-      color: white;
-      border: none;
-      padding: 12px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 16px;
-      font-weight: bold;
-      margin-top: 15px;
-    }
-
-    .btn-primary:hover {
-      background-color: #d63050;
-    }
-
-    .btn-primary:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    .btn-secondary {
-      display: inline-block;
-      background-color: #1a1a2e;
-      color: white;
-      text-decoration: none;
-      padding: 12px 24px;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-
-    /* ---------- EMPTY STATE ---------- */
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-    }
-
-    .empty-state h2 {
-      margin: 20px 0 10px;
-    }
-
-    .empty-state p {
-      color: #666;
-      margin-bottom: 20px;
-    }
-
-    /* ---------- LOGIN REQUIRED ---------- */
-    .login-required {
-      text-align: center;
-      padding: 60px 20px;
-    }
-
-    .login-required h2 {
-      margin: 20px 0 10px;
-    }
-
-    .login-required p {
-      color: #666;
-      margin-bottom: 20px;
-    }
-
-    /* ---------- SUCCESS MODAL ---------- */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(0,0,0,0.5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 100;
-      padding: 20px;
-    }
-
-    .modal {
-      background-color: white;
-      border-radius: 8px;
-      padding: 30px;
-      max-width: 400px;
-      width: 100%;
-      text-align: center;
-    }
-
-    .modal .success-icon {
-      width: 60px;
-      height: 60px;
-      background-color: #e8f5e9;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 20px;
-      font-size: 30px;
-    }
-
-    .modal h2 {
-      margin-bottom: 10px;
-    }
-
-    .modal p {
-      color: #666;
-      margin-bottom: 20px;
-    }
-
-    .modal .order-ref {
-      background-color: #f5f5f5;
-      padding: 15px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-    }
-
-    .modal .order-ref span {
-      font-family: monospace;
-      font-size: 18px;
-      font-weight: bold;
-    }
-
-    /* ---------- FOOTER ---------- */
-    footer {
-      background-color: #1a1a2e;
-      color: white;
-      text-align: center;
-      padding: 20px;
-      margin-top: auto;
-    }
-
-    [x-cloak] { display: none !important; }
-  </style>
+  </script>
+  
+  <style>[x-cloak] { display: none !important; }</style>
 </head>
 
-<body x-data="checkoutApp()">
+<!--
+  =============================================
+  CHECKOUT PAGE
+  =============================================
+  Requires login. Displays order summary and handles rental submission.
+-->
+<body x-data="checkoutApp()" class="bg-gray-50 min-h-screen flex flex-col">
 
-  <!-- NAVIGATION -->
-  <nav>
-    <div class="nav-content">
-      <h1><a href="/">🎭 MongoCollectibles</a></h1>
-      <a href="/">← Back to Catalogue</a>
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        <a href="/" class="text-white/80 hover:text-white flex items-center gap-2 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to Catalogue
+        </a>
+      </div>
     </div>
   </nav>
 
-  <!-- MAIN CONTENT -->
-  <main>
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
     
-    <!-- LOGIN REQUIRED (shown when not logged in) -->
-    <div x-show="!isLoggedIn && !checkingAuth" class="login-required">
-      <div style="font-size: 48px;">🔒</div>
-      <h2>Login Required</h2>
-      <p>You need to be logged in to checkout. Please login or create an account.</p>
-      <a href="/login" class="btn-secondary" style="margin-right: 10px;">Login</a>
-      <a href="/register" class="btn-secondary">Register</a>
+    <!-- ==================== LOGIN REQUIRED STATE ==================== -->
+    <!-- Shows when user is not logged in -->
+    <div x-show="!isLoggedIn && !checkingAuth" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🔒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+        <p class="text-gray-600 mb-8">You need to be logged in to checkout. Please login or create an account.</p>
+        <div class="flex gap-4 justify-center">
+          <a href="/login" class="bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            Login
+          </a>
+          <a href="/register" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors">
+            Register
+          </a>
+        </div>
+      </div>
     </div>
 
-    <!-- CHECKING AUTH (loading state) -->
-    <div x-show="checkingAuth" class="empty-state">
-      <p>Checking authentication...</p>
+    <!-- ==================== LOADING STATE ==================== -->
+    <div x-show="checkingAuth" class="text-center py-16">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Checking authentication...</p>
     </div>
 
-    <!-- NO ORDER DATA (shown when logged in but no items) -->
-    <div x-show="isLoggedIn && !orderData && !checkingAuth" class="empty-state">
-      <div style="font-size: 48px;">🛒</div>
-      <h2>No items to checkout</h2>
-      <p>Please select a product from our catalogue first</p>
-      <a href="/" class="btn-secondary">Browse Catalogue</a>
+    <!-- ==================== NO ORDER DATA STATE ==================== -->
+    <!-- Shows when logged in but no items selected -->
+    <div x-show="isLoggedIn && !orderData && !checkingAuth" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🛒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">No items to checkout</h2>
+        <p class="text-gray-600 mb-8">Please select a product from our catalogue first</p>
+        <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+          Browse Catalogue
+        </a>
+      </div>
     </div>
 
-    <!-- CHECKOUT FORM (shown when logged in AND has order data) -->
+    <!-- ==================== CHECKOUT FORM ==================== -->
+    <!-- Shows when logged in AND has order data -->
     <div x-show="isLoggedIn && orderData && !checkingAuth" x-cloak>
-      <h1>Checkout</h1>
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">Checkout</h1>
 
-      <div class="checkout-grid">
+      <div class="grid lg:grid-cols-3 gap-8">
         
-        <!-- Left Column -->
-        <div>
-          <!-- Order Summary -->
-          <div class="card">
-            <h2>Order Summary</h2>
-            <div class="order-item">
-              <img :src="orderData?.product?.imageURL" :alt="orderData?.product?.name"
-                   onerror="this.src='https://via.placeholder.com/100?text=No+Image'">
-              <div class="details">
-                <h3 x-text="orderData?.product?.name"></h3>
-                <p>Size: <span x-text="orderData?.product?.size"></span></p>
-                <p>
+        <!-- Left Column (2/3 width) -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Order Summary Card -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h2>
+            <div class="flex gap-4">
+              <img 
+                :src="orderData?.product?.imageURL" 
+                :alt="orderData?.product?.name"
+                onerror="this.src='https://via.placeholder.com/100?text=No+Image'"
+                class="w-24 h-24 object-cover rounded-xl">
+              <div class="flex-1">
+                <h3 class="font-semibold text-gray-800 text-lg" x-text="orderData?.product?.name"></h3>
+                <p class="text-gray-600 text-sm mt-1">
+                  Size: <span x-text="orderData?.product?.size" class="font-medium"></span>
+                </p>
+                <p class="text-gray-600 text-sm">
                   <span x-text="orderData?.quote?.days"></span> days × 
                   <span x-text="orderData?.quote?.quantity"></span> units
                 </p>
-                <p>From: <span x-text="orderData?.quote?.warehouse"></span></p>
+                <p class="text-brand-700 text-sm font-medium mt-2">
+                  📍 Pickup: <span x-text="storeName"></span>
+                </p>
               </div>
             </div>
           </div>
 
-          <!-- Customer Info Form -->
-          <div class="card">
-            <h2>Your Information</h2>
+          <!-- Customer Info Form Card -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Your Information</h2>
             
-            <div class="form-group">
-              <label>Full Name</label>
-              <input type="text" x-model="customer.name" placeholder="Juan Dela Cruz">
+            <!-- Full Name Input -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <input 
+                type="text" 
+                x-model="customer.name" 
+                placeholder="Juan Dela Cruz"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
             </div>
             
-            <div class="form-row">
-              <div class="form-group">
-                <label>Email</label>
-                <input type="email" x-model="customer.email" placeholder="juan@example.com">
+            <!-- Email and Phone Row -->
+            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input 
+                  type="email" 
+                  x-model="customer.email" 
+                  placeholder="juan@example.com"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
               </div>
-              <div class="form-group">
-                <label>Phone</label>
-                <input type="tel" x-model="customer.phone" placeholder="09123456789">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <input 
+                  type="tel" 
+                  x-model="customer.phone" 
+                  placeholder="09123456789"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
               </div>
             </div>
 
-            <div class="form-group">
-              <label>Pickup Location</label>
-              <input type="text" :value="orderData?.quote?.warehouse" disabled>
+            <!-- Pickup Location (read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Pickup Location</label>
+              <input 
+                type="text" 
+                :value="storeName" 
+                disabled
+                class="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600">
             </div>
           </div>
         </div>
 
-        <!-- Right Column - Price Summary -->
+        <!-- Right Column (1/3 width) - Price Summary -->
         <div>
-          <div class="card">
-            <h2>Price Summary</h2>
+          <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Summary</h2>
             
-            <div class="price-row">
-              <span>Unit Price</span>
-              <span>₱<span x-text="orderData?.quote?.unit_price?.toLocaleString()"></span></span>
-            </div>
-            <div class="price-row">
-              <span>Quantity</span>
-              <span x-text="orderData?.quote?.quantity"></span>
-            </div>
-            <div class="price-row">
-              <span>Rental Days</span>
-              <span x-text="orderData?.quote?.days"></span>
-            </div>
-            <div class="price-row total">
-              <span>Total</span>
-              <span class="amount">₱<span x-text="orderData?.quote?.total_price?.toLocaleString()"></span></span>
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Unit Price</span>
+                <span class="font-medium">₱<span x-text="orderData?.quote?.unit_price?.toLocaleString()"></span></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Quantity</span>
+                <span class="font-medium" x-text="orderData?.quote?.quantity"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Rental Days</span>
+                <span class="font-medium" x-text="orderData?.quote?.days"></span>
+              </div>
+              
+              <hr class="my-4">
+              
+              <div class="flex justify-between text-lg">
+                <span class="font-semibold text-gray-800">Total</span>
+                <span class="font-bold text-accent-500">₱<span x-text="orderData?.quote?.total_price?.toLocaleString()"></span></span>
+              </div>
             </div>
 
-            <button @click="submitOrder()" 
-                    :disabled="submitting || !isFormValid"
-                    class="btn-primary">
+            <!-- Submit Order Button -->
+            <button 
+              @click="submitOrder()" 
+              :disabled="submitting || !isFormValid"
+              class="w-full mt-6 bg-accent-500 hover:bg-accent-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors">
               <span x-show="!submitting">Confirm Order</span>
-              <span x-show="submitting">Processing...</span>
+              <span x-show="submitting" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+              </span>
             </button>
 
-            <p style="font-size: 12px; color: #888; text-align: center; margin-top: 15px;">
+            <p class="text-xs text-gray-500 text-center mt-4">
               By confirming, you agree to our rental terms
             </p>
           </div>
@@ -434,34 +241,76 @@
       </div>
     </div>
 
-    <!-- SUCCESS MODAL -->
-    <div x-show="showSuccess" x-cloak class="modal-overlay">
-      <div class="modal">
-        <div class="success-icon">✓</div>
-        <h2>Order Confirmed!</h2>
-        <p>Thank you for your order. We'll contact you shortly with pickup details.</p>
-        <div class="order-ref">
-          <small>Order Reference:</small><br>
-          <span x-text="orderReference"></span>
+    <!-- ==================== SUCCESS MODAL ==================== -->
+    <!-- Shows after successful order submission -->
+    <div 
+      x-show="showSuccess" 
+      x-cloak 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-8 text-center shadow-2xl">
+        
+        <!-- Success Icon -->
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
         </div>
-        <a href="/" class="btn-secondary">Back to Home</a>
+        
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h2>
+        <p class="text-gray-600 mb-6">Thank you for your order. We'll contact you shortly with pickup details.</p>
+        
+        <!-- Order Reference -->
+        <div class="bg-gray-100 rounded-xl p-4 mb-6">
+          <span class="text-sm text-gray-500">Order Reference</span>
+          <p class="text-xl font-mono font-bold text-gray-800" x-text="orderReference"></p>
+        </div>
+        
+        <!-- Pickup Location -->
+        <div class="bg-brand-50 border border-brand-200 rounded-xl p-4 mb-6">
+          <span class="text-brand-800 font-medium">📍 Pickup Location</span>
+          <p class="text-brand-900 font-semibold mt-1" x-text="storeName"></p>
+        </div>
+        
+        <!-- Allocated Units (commented out - uncomment to see warehouse details)
+        <div x-show="allocatedUnits.length > 0" class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+          <p class="font-medium text-gray-800 mb-3">Units Allocated:</p>
+          <template x-for="(unit, index) in allocatedUnits" :key="index">
+            <div class="text-sm text-gray-600 py-2 border-b border-gray-200 last:border-0">
+              Unit #<span x-text="unit.unit_id"></span> 
+              <span class="text-gray-400">from</span> 
+              <span class="font-medium" x-text="unit.warehouse_name"></span>
+            </div>
+          </template>
+        </div>
+        -->
+        
+        <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+          Back to Home
+        </a>
       </div>
     </div>
 
   </main>
 
-  <!-- FOOTER -->
-  <footer>
-    <p>© 2026 MongoCollectibles. All rights reserved.</p>
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
   </footer>
 
+  <!-- ==================== JAVASCRIPT ==================== -->
   <script>
     function checkoutApp() {
       return {
-        // Order data from localStorage
-        orderData: null,
+        // ========================================
+        // DATA
+        // ========================================
         
-        // Customer form
+        orderData: null,        // Order data from localStorage
+        stores: [],             // Store locations for displaying names
+        
+        // Customer form fields
         customer: {
           name: '',
           email: '',
@@ -472,6 +321,7 @@
         submitting: false,
         showSuccess: false,
         orderReference: '',
+        allocatedUnits: [],
         
         // Auth state
         isLoggedIn: false,
@@ -480,20 +330,20 @@
         checkingAuth: true,
 
         // ========================================
-        // LIFECYCLE
+        // LIFECYCLE - Runs on page load
         // ========================================
         
         async init() {
-          // First, verify user is logged in
           await this.checkAuth();
+          await this.loadStores();
           
-          // Then load order data
+          // Load order data from localStorage
           const data = localStorage.getItem('checkoutData');
           if (data) {
             this.orderData = JSON.parse(data);
           }
           
-          // Pre-fill form with user data if logged in
+          // Pre-fill form with user data
           if (this.user) {
             this.customer.name = this.user.name || '';
             this.customer.email = this.user.email || '';
@@ -502,9 +352,31 @@
         },
 
         // ========================================
+        // STORES
+        // ========================================
+        
+        // Load stores to display pickup location name
+        async loadStores() {
+          try {
+            const response = await fetch('/stores');
+            this.stores = await response.json();
+          } catch (error) {
+            console.error('Failed to load stores:', error);
+          }
+        },
+
+        // Get store name from store_id
+        get storeName() {
+          const storeId = this.orderData?.quote?.store_id || this.orderData?.rental?.storeId;
+          const store = this.stores.find(s => s.ID == storeId);
+          return store?.Name || 'N/A';
+        },
+
+        // ========================================
         // AUTHENTICATION
         // ========================================
         
+        // Verify token with server
         async checkAuth() {
           this.checkingAuth = true;
           const token = localStorage.getItem('token');
@@ -515,12 +387,9 @@
             return;
           }
           
-          // Verify token with server
           try {
             const response = await fetch('/api/me', {
-              headers: {
-                'Authorization': 'Bearer ' + token
-              }
+              headers: { 'Authorization': 'Bearer ' + token }
             });
             
             if (response.ok) {
@@ -530,14 +399,12 @@
               this.isLoggedIn = true;
               localStorage.setItem('user', JSON.stringify(data.user));
             } else {
-              // Token invalid - clear and show login
               localStorage.removeItem('token');
               localStorage.removeItem('user');
               this.isLoggedIn = false;
             }
           } catch (error) {
             console.error('Auth check failed:', error);
-            // On network error, trust localStorage
             const userStr = localStorage.getItem('user');
             if (userStr) {
               this.token = token;
@@ -563,7 +430,8 @@
         // ORDER SUBMISSION
         // ========================================
         
-        submitOrder() {
+        // Submit rental order to backend
+        async submitOrder() {
           if (!this.isFormValid) {
             alert('Please fill in all required fields');
             return;
@@ -571,14 +439,39 @@
 
           this.submitting = true;
 
-          // Simulate order processing
-          // In a real app, you'd POST to /api/orders with the token
-          setTimeout(() => {
-            this.orderReference = 'MC-' + Date.now().toString(36).toUpperCase();
-            localStorage.removeItem('checkoutData');
+          try {
+            // POST to /api/rentals with rental data
+            const response = await fetch('/api/rentals', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.token
+              },
+              body: JSON.stringify({
+                collectible_id: this.orderData.product.id,
+                store_id: this.orderData.quote.store_id,
+                quantity: this.orderData.quote.quantity,
+                days: this.orderData.quote.days
+              })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Success! Show confirmation
+              this.orderReference = 'MC-' + data.rental_id;
+              this.allocatedUnits = data.allocated_units || [];
+              localStorage.removeItem('checkoutData');
+              this.showSuccess = true;
+            } else {
+              alert('Order failed: ' + (data.error || data.message || 'Unknown error'));
+            }
+          } catch (error) {
+            console.error('Order submission failed:', error);
+            alert('Failed to submit order. Please try again.');
+          } finally {
             this.submitting = false;
-            this.showSuccess = true;
-          }, 1500);
+          }
         }
       }
     }

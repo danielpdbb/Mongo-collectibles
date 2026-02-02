@@ -23,6 +23,11 @@ func ShowCheckout(c *gin.Context) {
 	c.File("./web/checkout.html")
 }
 
+// ShowRentals serves the user's rentals page
+func ShowRentals(c *gin.Context) {
+	c.File("./web/rentals.html")
+}
+
 // ShowProduct serves the product detail page
 func ShowProduct(c *gin.Context) {
 	c.File("./web/product-detail.html")
@@ -132,6 +137,7 @@ func CreateQuote(c *gin.Context) {
 		"available":       true,
 		"collectible":     collectible,
 		"warehouse":       warehouse.Name,
+		"store_id":        req.StoreID, // Include store_id for checkout
 		"unit_price":      unitPrice,
 		"quantity":        req.Quantity,
 		"days":            req.Days,
