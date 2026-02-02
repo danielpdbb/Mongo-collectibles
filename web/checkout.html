@@ -215,12 +215,24 @@
                 <span class="font-semibold text-gray-800">Total</span>
                 <span class="font-bold text-accent-500">₱<span x-text="orderData?.quote?.total_price?.toLocaleString()"></span></span>
               </div>
+
+              <!-- Info about payment method limits -->
+              <div x-show="hasPaymentLimitNotice" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-amber-700 text-sm font-medium">ℹ️ Payment Method Notice</p>
+                <p class="text-amber-600 text-xs mt-1" x-text="paymentLimitMessage"></p>
+              </div>
+
+              <!-- Warning if amount exceeds ALL payment limits -->
+              <div x-show="exceedsAllPaymentLimits" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-red-600 text-sm font-medium">⚠️ Exceeds all payment limits</p>
+                <p class="text-red-500 text-xs mt-1">Please reduce quantity or days, or contact us for large orders.</p>
+              </div>
             </div>
 
             <!-- Submit Order Button -->
             <button 
               @click="submitOrder()" 
-              :disabled="submitting || !isFormValid"
+              :disabled="submitting || !isFormValid || exceedsAllPaymentLimits"
               class="w-full mt-6 bg-accent-500 hover:bg-accent-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors">
               <span x-show="!submitting">Confirm Order</span>
               <span x-show="submitting" class="flex items-center justify-center gap-2">
@@ -284,9 +296,14 @@
         </div>
         -->
         
-        <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-8 py-3 rounded-lg font-medium transition-colors">
-          Back to Home
-        </a>
+        <!-- Action Button - Auto redirect to payment -->
+        <p class="text-gray-600 mb-4">Redirecting to payment...</p>
+        <div class="flex flex-col gap-3">
+          <a :href="'/payment?rental_id=' + rentalId" class="inline-block bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+            💳 Complete Payment Now
+          </a>
+        </div>
+        <p class="text-xs text-gray-500 mt-4">⚠️ Your units are reserved for 1 minute. Please complete payment to confirm your rental.</p>
       </div>
     </div>
 
@@ -322,6 +339,7 @@
         showSuccess: false,
         orderReference: '',
         allocatedUnits: [],
+        rentalId: null,        // Rental ID for payment redirect
         
         // Auth state
         isLoggedIn: false,
@@ -426,6 +444,37 @@
                  this.customer.phone.trim() !== '';
         },
 
+        // Payment method limits (in PHP)
+        paymentLimits: {
+          card: 10000000,      // ₱10,000,000
+          gcash: 100000,       // ₱100,000
+          grab_pay: 100000,    // ₱100,000
+          dob_ubp: 100000,     // ₱100,000
+          dob_bpi: 50000       // ₱50,000
+        },
+
+        // Check if total exceeds ALL payment methods (card has highest at ₱10M)
+        get exceedsAllPaymentLimits() {
+          return (this.orderData?.quote?.total_price || 0) > 10000000;
+        },
+
+        // Check if some e-wallet/bank limits are exceeded (show notice)
+        get hasPaymentLimitNotice() {
+          const total = this.orderData?.quote?.total_price || 0;
+          return total > 50000 && total <= 10000000;
+        },
+
+        // Get payment limit message
+        get paymentLimitMessage() {
+          const total = this.orderData?.quote?.total_price || 0;
+          if (total > 100000) {
+            return 'Only Credit/Debit cards available for orders over ₱100,000';
+          } else if (total > 50000) {
+            return 'BPI not available for orders over ₱50,000. Other methods available.';
+          }
+          return '';
+        },
+
         // ========================================
         // ORDER SUBMISSION
         // ========================================
@@ -434,6 +483,12 @@
         async submitOrder() {
           if (!this.isFormValid) {
             alert('Please fill in all required fields');
+            return;
+          }
+
+          // Check payment limit before submission
+          if (this.exceedsAllPaymentLimits) {
+            alert('⚠️ Order total exceeds all payment limits (max ₱10,000,000).\n\nPlease reduce your quantity or rental days, or contact us for large orders.');
             return;
           }
 
@@ -459,6 +514,7 @@
 
             if (data.success) {
               // Success! Show confirmation
+              this.rentalId = data.rental_id;
               this.orderReference = 'MC-' + data.rental_id;
               this.allocatedUnits = data.allocated_units || [];
               localStorage.removeItem('checkoutData');

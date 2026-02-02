@@ -154,18 +154,34 @@
                     :class="{
                       'bg-green-100 text-green-700': rental.status === 'active',
                       'bg-blue-100 text-blue-700': rental.status === 'completed',
-                      'bg-red-100 text-red-700': rental.status === 'cancelled'
+                      'bg-red-100 text-red-700': rental.status === 'cancelled',
+                      'bg-amber-100 text-amber-700': rental.status === 'pending_payment',
+                      'bg-gray-100 text-gray-700': rental.status === 'expired'
                     }"
-                    x-text="rental.status.charAt(0).toUpperCase() + rental.status.slice(1)">
+                    x-text="getStatusText(rental.status)">
                   </span>
+
+                  <!-- Timer for pending payment -->
+                  <p x-show="rental.status === 'pending_payment' && rental.time_remaining > 0" 
+                     class="text-xs text-amber-600 mt-1 font-medium">
+                    ⏱️ <span x-text="formatTime(rental.time_remaining)"></span>
+                  </p>
                 </div>
                 
+                <!-- Payment Button (for pending_payment rentals) -->
+                <a 
+                  x-show="rental.status === 'pending_payment'"
+                  :href="'/payment?rental_id=' + rental.id"
+                  class="bg-accent-500 hover:bg-accent-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                  💳 Complete Payment
+                </a>
+
                 <!-- Cancel Button (only for active rentals) -->
                 <button 
                   x-show="rental.status === 'active'"
                   @click="cancelRental(rental.id)"
                   class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                  Cancel
+                  Complete
                 </button>
               </div>
               
@@ -196,6 +212,7 @@
         
         rentals: [],            // User's rental history
         loading: false,
+        timers: {},             // Store timer intervals for each rental
         
         // Auth state
         isLoggedIn: false,
@@ -211,7 +228,13 @@
           await this.checkAuth();
           if (this.isLoggedIn) {
             await this.loadRentals();
+            this.startAllTimers();
           }
+        },
+
+        // Cleanup timers when page is closed
+        destroy() {
+          Object.values(this.timers).forEach(timer => clearInterval(timer));
         },
 
         // ========================================
@@ -258,6 +281,47 @@
         },
 
         // ========================================
+        // TIMER MANAGEMENT
+        // ========================================
+
+        // Start countdown timers for all pending rentals
+        startAllTimers() {
+          this.rentals.forEach(rental => {
+            if (rental.status === 'pending_payment' && rental.time_remaining > 0) {
+              this.startTimer(rental);
+            }
+          });
+        },
+
+        // Start timer for a specific rental
+        startTimer(rental) {
+          // Clear existing timer if any
+          if (this.timers[rental.id]) {
+            clearInterval(this.timers[rental.id]);
+          }
+
+          // Start new timer
+          this.timers[rental.id] = setInterval(() => {
+            if (rental.time_remaining > 0) {
+              rental.time_remaining--;
+            } else {
+              // Timer expired
+              clearInterval(this.timers[rental.id]);
+              delete this.timers[rental.id];
+              rental.status = 'expired';
+            }
+          }, 1000);
+        },
+
+        // Stop timer for a specific rental
+        stopTimer(rentalId) {
+          if (this.timers[rentalId]) {
+            clearInterval(this.timers[rentalId]);
+            delete this.timers[rentalId];
+          }
+        },
+
+        // ========================================
         // DATA LOADING
         // ========================================
         
@@ -271,6 +335,8 @@
             const data = await response.json();
             if (data.success) {
               this.rentals = data.rentals || [];
+              // Restart timers after loading rentals
+              this.startAllTimers();
             }
           } catch (error) {
             console.error('Failed to load rentals:', error);
@@ -284,7 +350,7 @@
         
         // Cancel a rental and return units to inventory
         async cancelRental(rentalId) {
-          if (!confirm('Are you sure you want to cancel this rental?')) {
+          if (!confirm('Are you sure you want to return this rental?')) {
             return;
           }
 
@@ -296,7 +362,7 @@
             const data = await response.json();
             
             if (data.success) {
-              alert('Rental cancelled successfully');
+              alert('Rental returned successfully');
               await this.loadRentals(); // Refresh the list
             } else {
               alert('Failed to cancel: ' + (data.error || 'Unknown error'));
@@ -310,6 +376,26 @@
         // ========================================
         // HELPERS
         // ========================================
+
+        // Format status text for display
+        getStatusText(status) {
+          const statusMap = {
+            'active': 'Active',
+            'pending_payment': 'Pending Payment',
+            'completed': 'Completed',
+            'cancelled': 'Cancelled',
+            'expired': 'Expired'
+          };
+          return statusMap[status] || status;
+        },
+
+        // Format seconds to MM:SS
+        formatTime(seconds) {
+          if (!seconds || seconds <= 0) return 'Expired';
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          return `${mins}:${secs.toString().padStart(2, '0')}`;
+        },
         
         // Format date for display
         formatDate(dateStr) {

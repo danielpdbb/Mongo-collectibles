@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/danielpdbb/Mongo-collectibles/internal/service"
 	"github.com/gin-gonic/gin"
@@ -118,6 +119,16 @@ func GetMyRentals(c *gin.Context) {
 			}
 		}
 
+		// Calculate time remaining for pending_payment rentals
+		var timeRemaining *int
+		if r.Status == "pending_payment" && r.ExpiresAt != nil {
+			remaining := int(time.Until(*r.ExpiresAt).Seconds())
+			if remaining < 0 {
+				remaining = 0
+			}
+			timeRemaining = &remaining
+		}
+
 		rentalList = append(rentalList, gin.H{
 			"id":             r.ID,
 			"collectible":    r.Collectible.Name,
@@ -130,6 +141,7 @@ func GetMyRentals(c *gin.Context) {
 			"unit_price":     r.UnitPrice,
 			"total_price":    r.TotalPrice,
 			"status":         r.Status,
+			"time_remaining": timeRemaining, // Seconds remaining for payment
 			"start_date":     r.StartDate,
 			"end_date":       r.EndDate,
 			"warehouses":     warehouses,
@@ -184,6 +196,12 @@ func GetRental(c *gin.Context) {
 		return
 	}
 
+	// Check and expire if past deadline (for pending_payment rentals)
+	service.CheckAndExpireRental(uint(rentalID))
+
+	// Reload rental to get updated status
+	rental, _ = service.GetRentalByID(uint(rentalID))
+
 	// Format allocated units
 	var allocatedUnits []gin.H
 	for _, ru := range rental.RentalUnits {
@@ -192,6 +210,19 @@ func GetRental(c *gin.Context) {
 			"warehouse_id":   ru.WarehouseID,
 			"warehouse_name": ru.Warehouse.Name,
 		})
+	}
+
+	// Calculate time remaining for pending_payment rentals
+	var expiresAt *string
+	var timeRemaining *int
+	if rental.Status == "pending_payment" && rental.ExpiresAt != nil {
+		formatted := rental.ExpiresAt.Format("2006-01-02T15:04:05Z07:00")
+		expiresAt = &formatted
+		remaining := int(time.Until(*rental.ExpiresAt).Seconds())
+		if remaining < 0 {
+			remaining = 0
+		}
+		timeRemaining = &remaining
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -207,6 +238,8 @@ func GetRental(c *gin.Context) {
 			"unit_price":      rental.UnitPrice,
 			"total_price":     rental.TotalPrice,
 			"status":          rental.Status,
+			"expires_at":      expiresAt,
+			"time_remaining":  timeRemaining, // Seconds remaining for payment
 			"start_date":      rental.StartDate,
 			"end_date":        rental.EndDate,
 			"allocated_units": allocatedUnits,

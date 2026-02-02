@@ -7,9 +7,15 @@ import (
 	"github.com/danielpdbb/Mongo-collectibles/internal/domain"
 	"github.com/danielpdbb/Mongo-collectibles/internal/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("⚠️  No .env file found, using system environment variables")
+	}
+
 	// Initialize Gin router
 	r := gin.Default()
 
@@ -23,13 +29,15 @@ func main() {
 		&domain.Collectible{},
 		&domain.CollectibleUnit{},
 		&domain.WarehouseDistance{},
-		&domain.User{},       // User table for authentication
-		&domain.Rental{},     // Rental orders
-		&domain.RentalUnit{}, // Allocated units per rental
+		&domain.User{},           // User table for authentication
+		&domain.Rental{},         // Rental orders
+		&domain.RentalUnit{},     // Allocated units per rental
+		&domain.Payment{},        // Payment records
+		&domain.BillingDetails{}, // Billing information
 	)
 
 	// ⚠️ Seed data - Run ONCE to populate database, then comment out
-	// repository.SeedData()
+	repository.SeedData()
 
 	// --------------------
 	// PAGE ROUTES (serve HTML files)
@@ -40,6 +48,7 @@ func main() {
 	r.GET("/product/:id", api.ShowProduct) // Product detail page
 	r.GET("/login", api.ShowLogin)         // Login page
 	r.GET("/register", api.ShowRegister)   // Register page
+	r.GET("/payment", api.ShowPayment)     // Payment page
 
 	// --------------------
 	// API ROUTES (return JSON)
@@ -58,10 +67,23 @@ func main() {
 	// --------------------
 	// RENTAL API ROUTES (all require authentication)
 	// --------------------
-	r.POST("/api/rentals", api.AuthRequired(), api.CreateRental)                   // Create new rental
-	r.GET("/api/rentals", api.AuthRequired(), api.GetMyRentals)                    // Get user's rentals
-	r.GET("/api/rentals/:id", api.AuthRequired(), api.GetRental)                   // Get specific rental
-	r.POST("/api/rentals/:id/cancel", api.AuthRequired(), api.CancelRentalHandler) // Cancel rental
+	r.POST("/api/rentals", api.AuthRequired(), api.CreateRental)                       // Create new rental
+	r.GET("/api/rentals", api.AuthRequired(), api.GetMyRentals)                        // Get user's rentals
+	r.GET("/api/rentals/:id", api.AuthRequired(), api.GetRental)                       // Get specific rental
+	r.POST("/api/rentals/:id/cancel", api.AuthRequired(), api.CancelRentalHandler)     // Cancel rental
+	r.GET("/api/rentals/:id/payment", api.AuthRequired(), api.GetRentalPaymentHandler) // Get payment for rental
+
+	// --------------------
+	// PAYMENT API ROUTES (all require authentication)
+	// --------------------
+	r.POST("/api/payments", api.AuthRequired(), api.CreatePaymentHandler)           // Create payment
+	r.GET("/api/payments/:id/verify", api.AuthRequired(), api.VerifyPaymentHandler) // Verify payment status
+
+	// --------------------
+	// PAYMENT RESULT PAGES
+	// --------------------
+	r.GET("/payment/success", api.ShowPaymentSuccess) // Payment success redirect
+	r.GET("/payment/failed", api.ShowPaymentFailed)   // Payment failed redirect
 
 	// Start server
 	log.Println("🚀 Server starting on http://localhost:8080")

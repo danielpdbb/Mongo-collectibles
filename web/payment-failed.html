@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Failed - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              900: '#144037',
+            },
+            accent: {
+              500: '#f97316',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<!--
+  =============================================
+  PAYMENT FAILED PAGE
+  =============================================
+  Displayed when payment is cancelled or fails.
+  Verifies actual payment status and redirects if needed.
+-->
+<body class="bg-gradient-to-br from-red-400 via-red-500 to-red-600 min-h-screen flex flex-col">
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 flex justify-center items-center px-4 py-8">
+    
+    <!-- Loading State -->
+    <div id="loading" class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+      <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div class="animate-spin rounded-full h-10 w-10 border-4 border-gray-300 border-t-red-600"></div>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">Verifying Payment...</h1>
+      <p class="text-gray-600">Please wait while we verify your payment status.</p>
+    </div>
+    
+    <div id="content" class="hidden bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+      
+      <!-- Failed Icon -->
+      <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+        <svg class="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </div>
+      
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">Payment Failed</h1>
+      <p id="reason-text" class="text-gray-600 mb-6">
+        Your payment was not completed. This could be due to cancellation or an issue with the payment provider.
+      </p>
+      
+      <!-- Info Box -->
+      <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 text-left">
+        <p class="text-sm text-yellow-800">
+          <span class="font-medium">Don't worry!</span> Your rental has not been charged. You can try again with a different payment method.
+        </p>
+      </div>
+      
+      <!-- Actions -->
+      <div class="space-y-3">
+        <!-- <button onclick="history.back()" class="block w-full bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-lg transition-colors">
+          Try Again
+        </button> -->
+        <a href="/rentals" class="block w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 rounded-lg transition-colors">
+          View My Rentals
+        </a>
+        <a href="/" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg transition-colors">
+          Back to Home
+        </a>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    // On page load, verify the payment status
+    window.addEventListener('DOMContentLoaded', async () => {
+      const params = new URLSearchParams(window.location.search);
+      const paymentId = params.get('payment_id');
+      const reason = params.get('reason');
+      
+      // If we have a payment ID, verify its status
+      if (paymentId) {
+        try {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            showFailedUI(reason);
+            return;
+          }
+
+          const response = await fetch(`/api/payments/${paymentId}/verify`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          
+          const data = await response.json();
+          
+          // If payment actually succeeded, redirect to success page
+          if (data.success && data.status === 'paid') {
+            window.location.href = '/payment-success?payment_id=' + paymentId;
+            return;
+          }
+          
+          // Otherwise show failed UI
+          showFailedUI(data.status || reason);
+        } catch (err) {
+          console.error('Verification error:', err);
+          showFailedUI(reason);
+        }
+      } else {
+        // No payment ID, just show failed UI
+        showFailedUI(reason);
+      }
+    });
+
+    function showFailedUI(reason) {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('content').classList.remove('hidden');
+      
+      // Update reason text if provided
+      if (reason) {
+        const reasonText = document.getElementById('reason-text');
+        if (reasonText) {
+          if (reason === 'expired') {
+            reasonText.textContent = 'Your payment session has expired. Please create a new order to proceed.';
+          } else if (reason === 'cancelled') {
+            reasonText.textContent = 'You cancelled the payment. No charges were made.';
+          }
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>

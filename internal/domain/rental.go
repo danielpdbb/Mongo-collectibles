@@ -4,19 +4,20 @@ import "time"
 
 // Rental represents a customer's rental order
 type Rental struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
-	UserID        uint      `gorm:"not null" json:"user_id"`
-	CollectibleID uint      `gorm:"not null" json:"collectible_id"`
-	StoreID       uint      `gorm:"not null" json:"store_id"`
-	Quantity      int       `gorm:"not null" json:"quantity"`
-	Days          int       `gorm:"not null" json:"days"`
-	UnitPrice     int       `gorm:"not null" json:"unit_price"`
-	TotalPrice    int       `gorm:"not null" json:"total_price"`
-	Status        string    `gorm:"not null;default:'active'" json:"status"` // active, completed, cancelled
-	StartDate     time.Time `json:"start_date"`
-	EndDate       time.Time `json:"end_date"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID            uint       `gorm:"primaryKey" json:"id"`
+	UserID        uint       `gorm:"not null" json:"user_id"`
+	CollectibleID uint       `gorm:"not null" json:"collectible_id"`
+	StoreID       uint       `gorm:"not null" json:"store_id"`
+	Quantity      int        `gorm:"not null" json:"quantity"`
+	Days          int        `gorm:"not null" json:"days"`
+	UnitPrice     int        `gorm:"not null" json:"unit_price"`
+	TotalPrice    int        `gorm:"not null" json:"total_price"`
+	Status        string     `gorm:"not null;default:'active'" json:"status"` // pending_payment, active, completed, cancelled, expired
+	ExpiresAt     *time.Time `json:"expires_at,omitempty"`                    // Payment deadline for pending_payment status
+	StartDate     time.Time  `json:"start_date"`
+	EndDate       time.Time  `json:"end_date"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 
 	// Relationships (for eager loading)
 	User        User         `gorm:"foreignKey:UserID" json:"user,omitempty"`

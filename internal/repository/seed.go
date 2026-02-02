@@ -21,88 +21,68 @@ func SeedData() {
 
 	// MCU Collectibles
 	collectibles := []domain.Collectible{
-		// Large Size Collectibles
+		// Large Size Collectibles (4)
 		{
 			Name:     "Iron Man Mark LXXXV Life-Size Statue",
 			Size:     "L",
-			ImageURL: "https://images.unsplash.com/photo-1635863138275-d9b33299680b?w=800",
+			ImageURL: "https://www.sideshow.com/cdn-cgi/image/quality=90,f=auto/https://www.sideshow.com/storage/product-images/300281/iron-man-mark-vii_marvel_gallery_5f7e14d137814.jpg",
 		},
 		{
 			Name:     "Thanos Infinity Gauntlet Life-Size Replica",
 			Size:     "L",
-			ImageURL: "https://images.unsplash.com/photo-1612404730960-5c71577fca11?w=800",
+			ImageURL: "https://i.ebayimg.com/images/g/BFgAAOSwLNxcCIvR/s-l1200.jpg",
 		},
 		{
 			Name:     "Captain America Shield Full-Scale Replica",
 			Size:     "L",
-			ImageURL: "https://images.unsplash.com/photo-1569003339405-ea396a5a8a90?w=800",
+			ImageURL: "https://www.shutterstock.com/image-photo/captain-america-shield-hyper-realistic-600nw-2674561019.jpg",
 		},
 		{
-			Name:     "Thor Stormbreaker Life-Size Replica",
+			Name:     "Thor Mjolnir & Stormbreaker Set",
 			Size:     "L",
-			ImageURL: "https://images.unsplash.com/photo-1655720828018-edd2daec9349?w=800",
+			ImageURL: "https://static0.cbrimages.com/wordpress/wp-content/uploads/2022/04/Thor-Mjolnir.jpg?w=1200&h=675&fit=crop",
 		},
-		// Medium Size Collectibles
+		// Medium Size Collectibles (4)
 		{
 			Name:     "Spider-Man Advanced Suit 1:4 Scale",
 			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1635805737707-575885ab0820?w=800",
+			ImageURL: "https://www.sideshow.com/wp/wp-content/uploads/2020/01/Spider-Man-Advanced-Suit-Hot-Toys-6.jpg",
 		},
 		{
 			Name:     "Black Panther 1:4 Scale Statue",
 			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1559535332-db9971090158?w=800",
-		},
-		{
-			Name:     "Doctor Strange 1:4 Scale Figure",
-			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1624213111452-35e8d3d5cc18?w=800",
+			ImageURL: "https://handsomecake.com/cdn/shop/files/301104743_2271086519733765_182266933800230682_n.jpg?v=1731363607",
 		},
 		{
 			Name:     "Hulk Smash 1:4 Scale Statue",
 			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1608889825103-eb5ed706fc64?w=800",
+			ImageURL: "https://cdna.artstation.com/p/assets/images/images/050/635/174/large/adam-meah-hulk-smash-2.jpg?1655309388",
 		},
 		{
-			Name:     "Scarlet Witch 1:4 Scale Figure",
+			Name:     "Doctor Strange 1:4 Scale Figure",
 			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1611604548018-d56bbd85d681?w=800",
+			ImageURL: "https://www.sideshow.com/cdn-cgi/image/height=850,quality=90,f=auto/https://www.sideshow.com/storage/product-images/300662/doctor-strange_marvel_gallery_5faf3fe00cc14.jpg",
 		},
+		// Small Size Collectibles (4)
 		{
-			Name:     "Vision Premium Format Statue",
-			Size:     "M",
-			ImageURL: "https://images.unsplash.com/photo-1620336655052-b57986f5a26a?w=800",
-		},
-		// Small Size Collectibles
-		{
-			Name:     "Iron Man Mini Arc Reactor Replica",
+			Name:     "Iron Man Arc Reactor Replica",
 			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1509347528160-9a9e33742cdb?w=800",
-		},
-		{
-			Name:     "Loki Scepter Mind Stone Replica",
-			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1608889175123-8ee362201f81?w=800",
-		},
-		{
-			Name:     "Ant-Man Helmet 1:1 Wearable Replica",
-			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1608889476561-6242cfdbf622?w=800",
-		},
-		{
-			Name:     "Captain Marvel Photon Blaster Replica",
-			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?w=800",
+			ImageURL: "https://anotoys.com/cdn/shop/products/image_720x_30f385bd-df3c-4c45-8fa7-d505019e4d64_383x@3x.progressive.jpg?v=1691385529",
 		},
 		{
 			Name:     "Infinity Stones Complete Set",
 			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1614680376408-81e91ffe3db7?w=800",
+			ImageURL: "https://i.etsystatic.com/19286482/r/il/c6a59d/3293906755/il_fullxfull.3293906755_6h54.jpg",
 		},
 		{
 			Name:     "Baby Groot Dancing Figure",
 			Size:     "S",
-			ImageURL: "https://images.unsplash.com/photo-1636051028886-0059ad2383c8?w=800",
+			ImageURL: "https://m.media-amazon.com/images/I/71nCPIXlotL._AC_UF894,1000_QL80_.jpg",
+		},
+		{
+			Name:     "Loki Scepter Mind Stone Replica",
+			Size:     "S",
+			ImageURL: "https://static.wikia.nocookie.net/marvelcinematicuniverse/images/1/17/Scepter_Main.jpg/revision/latest?cb=20150806163618",
 		},
 	}
 	DB.Create(&collectibles)

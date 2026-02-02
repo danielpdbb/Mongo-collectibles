@@ -76,6 +76,9 @@ func CreateRental(req CreateRentalRequest) (*CreateRentalResponse, error) {
 	// ========================================
 	// STEP 5: Create the rental record
 	// ========================================
+	// ⏱️ CHANGE TIMER HERE: Replace "1 * time.Minute" with desired duration
+	// Examples: 30 * time.Second, 1 * time.Minute, 5 * time.Minute, 10 * time.Minute
+	expiresAt := time.Now().Add(1 * time.Minute) // Payment window duration
 	rental := &domain.Rental{
 		UserID:        req.UserID,
 		CollectibleID: req.CollectibleID,
@@ -84,7 +87,8 @@ func CreateRental(req CreateRentalRequest) (*CreateRentalResponse, error) {
 		Days:          req.Days,
 		UnitPrice:     unitPrice,
 		TotalPrice:    totalPrice,
-		Status:        "active",
+		Status:        "pending_payment", // Units reserved, awaiting payment
+		ExpiresAt:     &expiresAt,
 		StartDate:     time.Now(),
 		EndDate:       time.Now().AddDate(0, 0, req.Days),
 	}
@@ -134,6 +138,30 @@ func GetUserRentals(userID uint) ([]domain.Rental, error) {
 		Where("user_id = ?", userID).
 		Order("created_at DESC").
 		Find(&rentals).Error
+
+	// Auto-expire any pending_payment rentals that have passed their deadline
+	for _, rental := range rentals {
+		if rental.Status == "pending_payment" && rental.ExpiresAt != nil {
+			if time.Now().After(*rental.ExpiresAt) {
+				// Expire this rental
+				ExpireRental(rental.ID)
+			}
+		}
+	}
+
+	// Reload rentals to get updated statuses
+	if err == nil {
+		rentals = []domain.Rental{}
+		err = repository.DB.
+			Preload("Collectible").
+			Preload("Store").
+			Preload("RentalUnits").
+			Preload("RentalUnits.Warehouse").
+			Where("user_id = ?", userID).
+			Order("created_at DESC").
+			Find(&rentals).Error
+	}
+
 	return rentals, err
 }
 
@@ -151,6 +179,58 @@ func GetRentalByID(rentalID uint) (*domain.Rental, error) {
 		return nil, err
 	}
 	return &rental, nil
+}
+
+// ActivateRental changes a pending_payment rental to active (called after successful payment)
+func ActivateRental(rentalID uint) error {
+	// Clear expiration and set to active
+	return repository.DB.Model(&domain.Rental{}).
+		Where("id = ?", rentalID).
+		Updates(map[string]interface{}{
+			"status":     "active",
+			"expires_at": nil,
+		}).Error
+}
+
+// CheckAndExpireRental checks if a rental has expired and expires it if needed
+// Returns true if the rental is still valid, false if expired
+func CheckAndExpireRental(rentalID uint) (bool, error) {
+	var rental domain.Rental
+	if err := repository.DB.First(&rental, rentalID).Error; err != nil {
+		return false, err
+	}
+
+	// Only check pending_payment rentals
+	if rental.Status != "pending_payment" {
+		return rental.Status == "active", nil
+	}
+
+	// Check if expired
+	if rental.ExpiresAt != nil && time.Now().After(*rental.ExpiresAt) {
+		// Expire the rental
+		ExpireRental(rentalID)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// ExpireRental expires a pending rental and returns units to available
+func ExpireRental(rentalID uint) error {
+	var rental domain.Rental
+	if err := repository.DB.Preload("RentalUnits").First(&rental, rentalID).Error; err != nil {
+		return err
+	}
+
+	// Mark all units as available again
+	for _, ru := range rental.RentalUnits {
+		repository.DB.Model(&domain.CollectibleUnit{}).
+			Where("id = ?", ru.CollectibleUnitID).
+			Update("is_available", true)
+	}
+
+	// Update rental status to expired
+	return repository.DB.Model(&rental).Update("status", "expired").Error
 }
 
 // CompleteRental marks a rental as completed and returns units to available
