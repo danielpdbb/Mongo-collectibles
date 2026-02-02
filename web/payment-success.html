@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              900: '#144037',
+            },
+            accent: {
+              500: '#f97316',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<!--
+  =============================================
+  PAYMENT SUCCESS PAGE
+  =============================================
+  Displayed after successful payment redirect from PayMongo.
+-->
+<body x-data="successApp()" class="bg-gradient-to-br from-green-400 via-green-500 to-green-600 min-h-screen flex flex-col">
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 flex justify-center items-center px-4 py-8">
+    
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+      
+      <!-- Success Animation -->
+      <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+        <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+      
+      <h1 class="text-2xl font-bold text-gray-800 mb-2">Payment Successful!</h1>
+      <p class="text-gray-600 mb-6">Thank you for your payment. Your rental has been confirmed.</p>
+      
+      <!-- Order Reference -->
+      <div class="bg-gray-100 rounded-xl p-4 mb-6">
+        <span class="text-sm text-gray-500">Rental Reference</span>
+        <p class="text-xl font-mono font-bold text-gray-800">MC-<span x-text="rentalId"></span></p>
+      </div>
+      
+      <!-- Verifying Payment Status -->
+      <div x-show="verifying" class="mb-6">
+        <div class="inline-block animate-spin rounded-full h-6 w-6 border-4 border-green-500 border-t-transparent"></div>
+        <p class="text-sm text-gray-500 mt-2">Verifying payment...</p>
+      </div>
+      
+      <!-- Payment Confirmed -->
+      <div x-show="!verifying && paymentStatus === 'paid'" class="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+        <span class="text-green-700 font-medium">✓ Payment Confirmed</span>
+      </div>
+      
+      <!-- Actions -->
+      <div class="space-y-3">
+        <a href="/rentals" class="block w-full bg-brand-900 hover:bg-brand-800 text-white font-semibold py-3 rounded-lg transition-colors">
+          View My Rentals
+        </a>
+        <a href="/" class="block w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-3 rounded-lg transition-colors">
+          Continue Shopping
+        </a>
+      </div>
+      
+    </div>
+  </main>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    function successApp() {
+      return {
+        rentalId: null,
+        paymentId: null,
+        verifying: true,
+        paymentStatus: null,
+
+        async init() {
+          // Get rental ID from URL
+          const params = new URLSearchParams(window.location.search);
+          this.rentalId = params.get('rental_id') || 'N/A';
+          this.paymentId = params.get('payment_id');
+
+          // Verify payment status
+          await this.verifyPayment();
+        },
+
+        async verifyPayment() {
+          const token = localStorage.getItem('token');
+          if (!token || !this.rentalId || this.rentalId === 'N/A') {
+            this.verifying = false;
+            return;
+          }
+
+          try {
+            // Get payment for this rental
+            const response = await fetch(`/api/rentals/${this.rentalId}/payment`, {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+
+            const data = await response.json();
+            
+            if (data.success && data.payment) {
+              // Verify the payment status
+              const verifyResponse = await fetch(`/api/payments/${data.payment.id}/verify`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+              });
+
+              const verifyData = await verifyResponse.json();
+              this.paymentStatus = verifyData.status || 'paid';
+
+              // If payment actually failed/expired, redirect to failed page
+              if (verifyData.status === 'failed' || verifyData.status === 'expired' || verifyData.status === 'cancelled' || !verifyData.success) {
+                window.location.href = '/payment/failed?rental_id=' + this.rentalId;
+                return;
+              }
+            }
+          } catch (err) {
+            console.error('Verification error:', err);
+          }
+
+          this.verifying = false;
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>

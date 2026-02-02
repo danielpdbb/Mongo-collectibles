@@ -1,11 +1,537 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Checkout</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037',
+              950: '#0a2920',
+            },
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>[x-cloak] { display: none !important; }</style>
 </head>
-<body>
-  <h1>Checkout</h1>
-  <p>This page will redirect to PayMongo.</p>
+
+<!--
+  =============================================
+  CHECKOUT PAGE
+  =============================================
+  Requires login. Displays order summary and handles rental submission.
+-->
+<body x-data="checkoutApp()" class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        <a href="/" class="text-white/80 hover:text-white flex items-center gap-2 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to Catalogue
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- ==================== LOGIN REQUIRED STATE ==================== -->
+    <!-- Shows when user is not logged in -->
+    <div x-show="!isLoggedIn && !checkingAuth" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🔒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+        <p class="text-gray-600 mb-8">You need to be logged in to checkout. Please login or create an account.</p>
+        <div class="flex gap-4 justify-center">
+          <a href="/login" class="bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            Login
+          </a>
+          <a href="/register" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors">
+            Register
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LOADING STATE ==================== -->
+    <div x-show="checkingAuth" class="text-center py-16">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Checking authentication...</p>
+    </div>
+
+    <!-- ==================== NO ORDER DATA STATE ==================== -->
+    <!-- Shows when logged in but no items selected -->
+    <div x-show="isLoggedIn && !orderData && !checkingAuth" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🛒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">No items to checkout</h2>
+        <p class="text-gray-600 mb-8">Please select a product from our catalogue first</p>
+        <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+          Browse Catalogue
+        </a>
+      </div>
+    </div>
+
+    <!-- ==================== CHECKOUT FORM ==================== -->
+    <!-- Shows when logged in AND has order data -->
+    <div x-show="isLoggedIn && orderData && !checkingAuth" x-cloak>
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">Checkout</h1>
+
+      <div class="grid lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column (2/3 width) -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- Order Summary Card -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h2>
+            <div class="flex gap-4">
+              <img 
+                :src="orderData?.product?.imageURL" 
+                :alt="orderData?.product?.name"
+                onerror="this.src='https://via.placeholder.com/100?text=No+Image'"
+                class="w-24 h-24 object-cover rounded-xl">
+              <div class="flex-1">
+                <h3 class="font-semibold text-gray-800 text-lg" x-text="orderData?.product?.name"></h3>
+                <p class="text-gray-600 text-sm mt-1">
+                  Size: <span x-text="orderData?.product?.size" class="font-medium"></span>
+                </p>
+                <p class="text-gray-600 text-sm">
+                  <span x-text="orderData?.quote?.days"></span> days × 
+                  <span x-text="orderData?.quote?.quantity"></span> units
+                </p>
+                <p class="text-brand-700 text-sm font-medium mt-2">
+                  📍 Pickup: <span x-text="storeName"></span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Customer Info Form Card -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Your Information</h2>
+            
+            <!-- Full Name Input -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+              <input 
+                type="text" 
+                x-model="customer.name" 
+                placeholder="Juan Dela Cruz"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            
+            <!-- Email and Phone Row -->
+            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                <input 
+                  type="email" 
+                  x-model="customer.email" 
+                  placeholder="juan@example.com"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                <input 
+                  type="tel" 
+                  x-model="customer.phone" 
+                  placeholder="09123456789"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+
+            <!-- Pickup Location (read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Pickup Location</label>
+              <input 
+                type="text" 
+                :value="storeName" 
+                disabled
+                class="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-lg text-gray-600">
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column (1/3 width) - Price Summary -->
+        <div>
+          <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Price Summary</h2>
+            
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Unit Price</span>
+                <span class="font-medium">₱<span x-text="orderData?.quote?.unit_price?.toLocaleString()"></span></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Quantity</span>
+                <span class="font-medium" x-text="orderData?.quote?.quantity"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Rental Days</span>
+                <span class="font-medium" x-text="orderData?.quote?.days"></span>
+              </div>
+              
+              <hr class="my-4">
+              
+              <div class="flex justify-between text-lg">
+                <span class="font-semibold text-gray-800">Total</span>
+                <span class="font-bold text-accent-500">₱<span x-text="orderData?.quote?.total_price?.toLocaleString()"></span></span>
+              </div>
+
+              <!-- Info about payment method limits -->
+              <div x-show="hasPaymentLimitNotice" class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-amber-700 text-sm font-medium">ℹ️ Payment Method Notice</p>
+                <p class="text-amber-600 text-xs mt-1" x-text="paymentLimitMessage"></p>
+              </div>
+
+              <!-- Warning if amount exceeds ALL payment limits -->
+              <div x-show="exceedsAllPaymentLimits" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-red-600 text-sm font-medium">⚠️ Exceeds all payment limits</p>
+                <p class="text-red-500 text-xs mt-1">Please reduce quantity or days, or contact us for large orders.</p>
+              </div>
+            </div>
+
+            <!-- Submit Order Button -->
+            <button 
+              @click="submitOrder()" 
+              :disabled="submitting || !isFormValid || exceedsAllPaymentLimits"
+              class="w-full mt-6 bg-accent-500 hover:bg-accent-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors">
+              <span x-show="!submitting">Confirm Order</span>
+              <span x-show="submitting" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+              </span>
+            </button>
+
+            <p class="text-xs text-gray-500 text-center mt-4">
+              By confirming, you agree to our rental terms
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== SUCCESS MODAL ==================== -->
+    <!-- Shows after successful order submission -->
+    <div 
+      x-show="showSuccess" 
+      x-cloak 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-8 text-center shadow-2xl">
+        
+        <!-- Success Icon -->
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h2>
+        <p class="text-gray-600 mb-6">Thank you for your order. We'll contact you shortly with pickup details.</p>
+        
+        <!-- Order Reference -->
+        <div class="bg-gray-100 rounded-xl p-4 mb-6">
+          <span class="text-sm text-gray-500">Order Reference</span>
+          <p class="text-xl font-mono font-bold text-gray-800" x-text="orderReference"></p>
+        </div>
+        
+        <!-- Pickup Location -->
+        <div class="bg-brand-50 border border-brand-200 rounded-xl p-4 mb-6">
+          <span class="text-brand-800 font-medium">📍 Pickup Location</span>
+          <p class="text-brand-900 font-semibold mt-1" x-text="storeName"></p>
+        </div>
+        
+        <!-- Allocated Units (commented out - uncomment to see warehouse details)
+        <div x-show="allocatedUnits.length > 0" class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+          <p class="font-medium text-gray-800 mb-3">Units Allocated:</p>
+          <template x-for="(unit, index) in allocatedUnits" :key="index">
+            <div class="text-sm text-gray-600 py-2 border-b border-gray-200 last:border-0">
+              Unit #<span x-text="unit.unit_id"></span> 
+              <span class="text-gray-400">from</span> 
+              <span class="font-medium" x-text="unit.warehouse_name"></span>
+            </div>
+          </template>
+        </div>
+        -->
+        
+        <!-- Action Button - Auto redirect to payment -->
+        <p class="text-gray-600 mb-4">Redirecting to payment...</p>
+        <div class="flex flex-col gap-3">
+          <a :href="'/payment?rental_id=' + rentalId" class="inline-block bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-lg font-medium transition-colors">
+            💳 Complete Payment Now
+          </a>
+        </div>
+        <p class="text-xs text-gray-500 mt-4">⚠️ Your units are reserved for 1 minute. Please complete payment to confirm your rental.</p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    function checkoutApp() {
+      return {
+        // ========================================
+        // DATA
+        // ========================================
+        
+        orderData: null,        // Order data from localStorage
+        stores: [],             // Store locations for displaying names
+        
+        // Customer form fields
+        customer: {
+          name: '',
+          email: '',
+          phone: ''
+        },
+        
+        // UI state
+        submitting: false,
+        showSuccess: false,
+        orderReference: '',
+        allocatedUnits: [],
+        rentalId: null,        // Rental ID for payment redirect
+        
+        // Auth state
+        isLoggedIn: false,
+        user: null,
+        token: null,
+        checkingAuth: true,
+
+        // ========================================
+        // LIFECYCLE - Runs on page load
+        // ========================================
+        
+        async init() {
+          await this.checkAuth();
+          await this.loadStores();
+          
+          // Load order data from localStorage
+          const data = localStorage.getItem('checkoutData');
+          if (data) {
+            this.orderData = JSON.parse(data);
+          }
+          
+          // Pre-fill form with user data
+          if (this.user) {
+            this.customer.name = this.user.name || '';
+            this.customer.email = this.user.email || '';
+            this.customer.phone = this.user.phone || '';
+          }
+        },
+
+        // ========================================
+        // STORES
+        // ========================================
+        
+        // Load stores to display pickup location name
+        async loadStores() {
+          try {
+            const response = await fetch('/stores');
+            this.stores = await response.json();
+          } catch (error) {
+            console.error('Failed to load stores:', error);
+          }
+        },
+
+        // Get store name from store_id
+        get storeName() {
+          const storeId = this.orderData?.quote?.store_id || this.orderData?.rental?.storeId;
+          const store = this.stores.find(s => s.ID == storeId);
+          return store?.Name || 'N/A';
+        },
+
+        // ========================================
+        // AUTHENTICATION
+        // ========================================
+        
+        // Verify token with server
+        async checkAuth() {
+          this.checkingAuth = true;
+          const token = localStorage.getItem('token');
+          
+          if (!token) {
+            this.isLoggedIn = false;
+            this.checkingAuth = false;
+            return;
+          }
+          
+          try {
+            const response = await fetch('/api/me', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.token = token;
+              this.user = data.user;
+              this.isLoggedIn = true;
+              localStorage.setItem('user', JSON.stringify(data.user));
+            } else {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              this.isLoggedIn = false;
+            }
+          } catch (error) {
+            console.error('Auth check failed:', error);
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              this.token = token;
+              this.user = JSON.parse(userStr);
+              this.isLoggedIn = true;
+            }
+          }
+          
+          this.checkingAuth = false;
+        },
+
+        // ========================================
+        // FORM VALIDATION
+        // ========================================
+        
+        get isFormValid() {
+          return this.customer.name.trim() !== '' && 
+                 this.customer.email.trim() !== '' && 
+                 this.customer.phone.trim() !== '';
+        },
+
+        // Payment method limits (in PHP)
+        paymentLimits: {
+          card: 10000000,      // ₱10,000,000
+          gcash: 100000,       // ₱100,000
+          grab_pay: 100000,    // ₱100,000
+          dob_ubp: 100000,     // ₱100,000
+          dob_bpi: 50000       // ₱50,000
+        },
+
+        // Check if total exceeds ALL payment methods (card has highest at ₱10M)
+        get exceedsAllPaymentLimits() {
+          return (this.orderData?.quote?.total_price || 0) > 10000000;
+        },
+
+        // Check if some e-wallet/bank limits are exceeded (show notice)
+        get hasPaymentLimitNotice() {
+          const total = this.orderData?.quote?.total_price || 0;
+          return total > 50000 && total <= 10000000;
+        },
+
+        // Get payment limit message
+        get paymentLimitMessage() {
+          const total = this.orderData?.quote?.total_price || 0;
+          if (total > 100000) {
+            return 'Only Credit/Debit cards available for orders over ₱100,000';
+          } else if (total > 50000) {
+            return 'BPI not available for orders over ₱50,000. Other methods available.';
+          }
+          return '';
+        },
+
+        // ========================================
+        // ORDER SUBMISSION
+        // ========================================
+        
+        // Submit rental order to backend
+        async submitOrder() {
+          if (!this.isFormValid) {
+            alert('Please fill in all required fields');
+            return;
+          }
+
+          // Check payment limit before submission
+          if (this.exceedsAllPaymentLimits) {
+            alert('⚠️ Order total exceeds all payment limits (max ₱10,000,000).\n\nPlease reduce your quantity or rental days, or contact us for large orders.');
+            return;
+          }
+
+          this.submitting = true;
+
+          try {
+            // POST to /api/rentals with rental data
+            const response = await fetch('/api/rentals', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.token
+              },
+              body: JSON.stringify({
+                collectible_id: this.orderData.product.id,
+                store_id: this.orderData.quote.store_id,
+                quantity: this.orderData.quote.quantity,
+                days: this.orderData.quote.days
+              })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Success! Show confirmation
+              this.rentalId = data.rental_id;
+              this.orderReference = 'MC-' + data.rental_id;
+              this.allocatedUnits = data.allocated_units || [];
+              localStorage.removeItem('checkoutData');
+              this.showSuccess = true;
+            } else {
+              alert('Order failed: ' + (data.error || data.message || 'Unknown error'));
+            }
+          } catch (error) {
+            console.error('Order submission failed:', error);
+            alert('Failed to submit order. Please try again.');
+          } finally {
+            this.submitting = false;
+          }
+        }
+      }
+    }
+  </script>
+
 </body>
 </html>

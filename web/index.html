@@ -1,91 +1,696 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>MongoCollectibles</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MongoCollectibles - Collectible Rentals</title>
+  
+  <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Primary brand color - Deep Forest Green
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037', // Main brand color
+              950: '#0a2920',
+            },
+            // Accent color - Warm Coral
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>
+    /* 
+      x-cloak EXPLAINED:
+      - Elements with x-cloak attribute are hidden until Alpine.js initializes
+      - Prevents "flash of unstyled content" (FOUC) where users briefly see
+        template syntax like {{ variable }} before Alpine processes them
+      - Alpine automatically removes x-cloak once it's ready
+    */
+    [x-cloak] { display: none !important; }
+  </style>
 </head>
-<body class="bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 min-h-screen flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-    <!-- Header -->
-    <div class="text-center mb-8">
-      <div class="inline-block p-3 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mb-4">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-        </svg>
-      </div>
-      <h1 class="text-3xl font-bold text-gray-800 mb-2">MongoCollectibles</h1>
-      <p class="text-gray-500">Rent premium collectibles today</p>
-    </div>
 
-    <!-- Form -->
-    <form id="quoteForm" class="space-y-6">
-      <!-- Size Selection -->
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-2">Collectible Size</label>
-        <select id="size" class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors bg-white text-gray-700">
-          <option value="S">Small - Perfect for desktops</option>
-          <option value="M">Medium - Statement pieces</option>
-          <option value="L">Large - Premium collection</option>
-        </select>
-      </div>
+<!--
+  =============================================
+  ALPINE.JS COMPONENT - HOW IT WORKS
+  =============================================
+  
+  x-data="catalogueApp()" is the FOUNDATION of Alpine.js:
+  
+  1. INITIALIZATION:
+     - x-data defines a "component scope" - everything inside this element
+       can access the data and methods returned by catalogueApp()
+     - catalogueApp() is a function that returns an object with:
+       • Data properties (products, stores, loading, filter, etc.)
+       • Methods (loadProducts, getQuote, logout, etc.)
+       • Computed properties via getters (filteredProducts)
+       • init() method - runs automatically when component mounts
+  
+  2. REACTIVITY:
+     - When any data property changes, Alpine automatically updates the DOM
+     - No manual DOM manipulation needed - just change the data!
+     - Example: setting this.loading = false automatically hides the spinner
+  
+  3. SCOPE:
+     - All child elements can access parent's x-data
+     - Like a mini Vue.js or React component, but simpler
+-->
+<body x-data="catalogueApp()" class="bg-gray-50 min-h-screen flex flex-col">
 
-      <!-- Days Input -->
-      <div>
-        <label class="block text-sm font-semibold text-gray-700 mb-2">Rental Duration</label>
-        <div class="relative">
-          <input 
-            type="number" 
-            id="days" 
-            min="1" 
-            required 
-            placeholder="Enter number of days"
-            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:outline-none transition-colors"
-          >
-          <span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm"></span>
+  <!-- ==================== NAVIGATION BAR ==================== -->
+  <!-- Main nav with brand color #144037 (brand-900) -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        
+        <!-- Logo -->
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        
+        <!-- Auth Links - Different views for logged in/out states -->
+        <div class="flex items-center space-x-4">
+          
+          <!--
+            x-if vs x-show EXPLAINED:
+            
+            x-if="condition":
+            - REMOVES element from DOM entirely when false
+            - Must be used on a <template> tag
+            - Better for elements that rarely change (like auth state)
+            - Has slight performance cost when toggling (DOM manipulation)
+            
+            x-show="condition":
+            - Just toggles CSS display:none
+            - Element stays in DOM, just hidden
+            - Better for frequently toggled elements (like modals)
+            - Faster toggling, but element always exists in memory
+          -->
+          
+          <!-- Show when NOT logged in -->
+          <template x-if="!isLoggedIn">
+            <div class="flex items-center space-x-3">
+              <a href="/login" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors">
+                Login
+              </a>
+              <a href="/register" class="bg-accent-500 hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                Register
+              </a>
+            </div>
+          </template>
+          
+          <!-- Show when logged in -->
+          <template x-if="isLoggedIn">
+            <div class="flex items-center space-x-4">
+              <span class="text-white/70 hidden sm:block">
+                Hello, <span x-text="user?.name || 'User'" class="text-white font-medium"></span>
+              </span>
+              <a href="/rentals" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors hover:bg-white/10">
+                My Rentals
+              </a>
+              <!--
+                @click EXPLAINED (Event Handling):
+                - @click is shorthand for x-on:click
+                - Calls the logout() method defined in x-data
+                - Can also do inline expressions: @click="showModal = false"
+                - Other events: @submit, @keyup, @mouseover, @input, etc.
+                - Modifiers: @click.prevent (preventDefault), @keyup.enter, @click.outside
+              -->
+              <button @click="logout()" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors hover:bg-white/10">
+                Logout
+              </button>
+            </div>
+          </template>
+          
         </div>
       </div>
+    </div>
+  </nav>
 
-      <!-- Submit Button -->
+  <!-- ==================== HERO SECTION ==================== -->
+  <header class="bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700 text-white py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        Rent Premium MCU Collectibles
+      </h1>
+      <p class="text-xl text-white/80 max-w-2xl mx-auto">
+        Access rare statues and figurines without the full purchase price. 
+        Perfect for events, displays, or trying before you buy.
+      </p>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- Section Title -->
+    <h2 class="text-2xl font-bold text-gray-800 text-center mb-8">Our Collection</h2>
+
+    <!-- ==================== FILTER BUTTONS ==================== -->
+    <!--
+      :class EXPLAINED (Dynamic Class Binding):
+      - :class is shorthand for x-bind:class
+      - Dynamically adds/removes CSS classes based on data
+      
+      Syntax options:
+      1. Ternary: :class="condition ? 'class-if-true' : 'class-if-false'"
+      2. Object:  :class="{ 'active': isActive, 'disabled': isDisabled }"
+      3. Array:   :class="[baseClass, conditionalClass]"
+      
+      The static class="..." and dynamic :class="..." are MERGED together!
+    -->
+    <div class="flex flex-wrap justify-center gap-2 mb-8">
       <button 
-        type="submit" 
-        class="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-lg hover:from-purple-600 hover:to-blue-600 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
-      >
-        Get Your Quote
+        @click="filter = 'all'" 
+        :class="filter === 'all' ? 'bg-brand-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+        class="px-5 py-2 rounded-full font-medium transition-all shadow-sm border border-gray-200">
+        All
       </button>
-    </form>
+      <button 
+        @click="filter = 'L'" 
+        :class="filter === 'L' ? 'bg-brand-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+        class="px-5 py-2 rounded-full font-medium transition-all shadow-sm border border-gray-200">
+        Large
+      </button>
+      <button 
+        @click="filter = 'M'" 
+        :class="filter === 'M' ? 'bg-brand-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+        class="px-5 py-2 rounded-full font-medium transition-all shadow-sm border border-gray-200">
+        Medium
+      </button>
+      <button 
+        @click="filter = 'S'" 
+        :class="filter === 'S' ? 'bg-brand-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+        class="px-5 py-2 rounded-full font-medium transition-all shadow-sm border border-gray-200">
+        Small
+      </button>
+    </div>
 
-    <!-- Result Display -->
-    <div id="resultContainer" class="mt-6 hidden">
-      <div class="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-lg p-4 text-center">
-        <p class="text-sm text-gray-600 mb-1">Your Total Price</p>
-        <h2 id="result" class="text-3xl font-bold text-green-600"></h2>
-      </div>
+    <!-- ==================== LOADING STATE ==================== -->
+    <!--
+      x-show EXPLAINED:
+      - Toggles element visibility using CSS display property
+      - When loading=true, element is visible
+      - When loading=false, Alpine adds display:none
+      - Element stays in DOM (unlike x-if which removes it)
+    -->
+    <div x-show="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Loading products...</p>
+    </div>
+
+    <!-- ==================== PRODUCT GRID ==================== -->
+    <!--
+      x-for EXPLAINED (Looping):
+      - Iterates over an array and renders element for each item
+      - MUST be on a <template> tag (Alpine requirement)
+      - :key="product.id" helps Alpine track which items changed (like React keys)
+      
+      Syntax variations:
+      - x-for="item in items"           → basic loop
+      - x-for="(item, index) in items"  → with index
+      - x-for="i in 10"                 → numeric range (1-10)
+      
+      filteredProducts is a GETTER (computed property) that automatically
+      re-runs when 'filter' or 'products' changes - reactive magic!
+    -->
+    <div x-show="!loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      
+      <template x-for="product in filteredProducts" :key="product.id">
+        
+        <!-- PRODUCT CARD - Click opens modal with product details -->
+        <div 
+          @click="openModal(product)"
+          class="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer overflow-hidden group border border-gray-100">
+          
+          <!-- Image Container -->
+          <!--
+            :src, :alt, :value, etc. EXPLAINED (Attribute Binding):
+            - : is shorthand for x-bind:
+            - Dynamically sets any HTML attribute from data
+            - :src="product.imageURL" → src becomes the value of product.imageURL
+            - Works for ANY attribute: :href, :disabled, :placeholder, :max, etc.
+          -->
+          <div class="relative overflow-hidden">
+            <img 
+              :src="product.imageURL" 
+              :alt="product.name"
+              onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'"
+              class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
+            
+            <!-- Size Badge - positioned top-right -->
+            <span class="absolute top-3 right-3 bg-brand-900 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
+              <span x-text="product.size"></span>
+            </span>
+          </div>
+          
+          <!-- Card Content -->
+          <div class="p-5">
+            <!--
+              x-text EXPLAINED (Text Content):
+              - Sets the innerText of an element
+              - x-text="product.name" → element shows product's name
+              - Automatically escapes HTML (safe from XSS)
+              - Alternative: x-html for raw HTML (use carefully!)
+            -->
+            <h3 class="font-semibold text-gray-800 mb-3 line-clamp-2" x-text="product.name"></h3>
+            
+            <!-- Price and Stock Row -->
+            <div class="flex justify-between items-center">
+              <span class="text-accent-500 font-bold text-lg">
+                ₱<span x-text="product.price_per_day.toLocaleString()"></span>
+                <span class="text-gray-400 text-sm font-normal">/day</span>
+              </span>
+              <span class="text-gray-500 text-sm bg-gray-100 px-2 py-1 rounded-full">
+                <span x-text="product.available_units"></span> available
+              </span>
+            </div>
+          </div>
+          
+        </div>
+        
+      </template>
+      
+    </div>
+
+    <!-- ==================== EMPTY STATE ==================== -->
+    <div x-show="!loading && filteredProducts.length === 0" class="text-center py-12">
+      <div class="text-6xl mb-4">🔍</div>
+      <h3 class="text-xl font-semibold text-gray-700 mb-2">No products found</h3>
+      <p class="text-gray-500">Try selecting a different filter</p>
+    </div>
+
+  </main>
+
+  <!-- ==================== MODAL (POPUP) ==================== -->
+  <!--
+    MODAL with x-transition EXPLAINED:
+    
+    @click.self modifier:
+    - .self means "only if clicked element is THIS element"
+    - Clicking the dark overlay closes modal
+    - Clicking modal content (child) does NOT close it
+    - Other modifiers: .prevent, .stop, .window, .outside
+    
+    x-transition EXPLAINED (Animations):
+    - Automatically applies CSS classes during show/hide
+    - enter: when element appears
+    - leave: when element disappears
+    - start: initial state
+    - end: final state
+    
+    Flow: hidden → enter-start → enter-end → visible → leave-start → leave-end → hidden
+    
+    Shorthand: just "x-transition" applies default fade
+  -->
+  <div 
+    x-show="showModal" 
+    x-cloak 
+    @click.self="showModal = false"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4"
+    x-transition:enter="transition ease-out duration-300"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0">
+    
+    <div 
+      class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+      x-transition:enter="transition ease-out duration-300"
+      x-transition:enter-start="opacity-0 scale-95"
+      x-transition:enter-end="opacity-100 scale-100">
+      
+      <template x-if="selectedProduct">
+        <div>
+          <!-- Modal Image -->
+          <div class="relative">
+            <img 
+              :src="selectedProduct.imageURL" 
+              :alt="selectedProduct.name"
+              class="w-full h-56 object-cover">
+            <!-- Close Button -->
+            <button 
+              @click="showModal = false"
+              class="absolute top-4 right-4 bg-white/90 hover:bg-white text-gray-700 rounded-full p-2 shadow-lg transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Modal Content -->
+          <div class="p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2" x-text="selectedProduct.name"></h2>
+            <div class="flex items-center gap-4 text-gray-600 mb-6">
+              <span class="bg-brand-100 text-brand-800 px-3 py-1 rounded-full text-sm font-medium">
+                Size: <span x-text="selectedProduct.size"></span>
+              </span>
+              <span class="text-sm">
+                <span x-text="selectedProduct.available_units"></span> units available
+              </span>
+            </div>
+            
+            <hr class="my-6 border-gray-200">
+            
+            <!-- Rental Calculator Form -->
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Calculate Your Rental</h3>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <!-- Store Selection -->
+              <!--
+                x-model EXPLAINED (Two-Way Binding):
+                - Creates a two-way data binding between input and data
+                - When user types/selects → data updates automatically
+                - When data changes programmatically → input updates
+                - Works with: input, textarea, select, checkbox, radio
+                
+                Modifiers:
+                - x-model.number → converts to number
+                - x-model.debounce → delays updates (good for search)
+                - x-model.lazy → updates on change instead of input
+              -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Store Location</label>
+                <select 
+                  x-model="rental.storeId"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white">
+                  <template x-for="store in stores" :key="store.ID">
+                    <option :value="store.ID" x-text="store.Name"></option>
+                  </template>
+                </select>
+              </div>
+              
+              <!-- Rental Days -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Rental Days</label>
+                <input 
+                  type="number" 
+                  x-model="rental.days" 
+                  min="1" 
+                  max="30"
+                  class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+            
+            <!-- Quantity -->
+            <div class="mb-6">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
+              <input 
+                type="number" 
+                x-model="rental.quantity" 
+                min="1" 
+                :max="selectedProduct.available_units"
+                class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            
+            <!-- Get Quote Button -->
+            <button 
+              @click="getQuote()" 
+              :disabled="quoteLoading"
+              class="w-full bg-brand-900 hover:bg-brand-800 disabled:bg-gray-300 text-white font-semibold py-3 rounded-lg transition-colors">
+              <span x-show="!quoteLoading">Get Price Quote</span>
+              <span x-show="quoteLoading" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Calculating...
+              </span>
+            </button>
+            
+            <!-- ==================== QUOTE RESULT ==================== -->
+            <!-- Shows after successfully getting a quote -->
+            <div x-show="quote" class="mt-6 bg-green-50 border border-green-200 rounded-xl p-5">
+              <div class="space-y-2 text-gray-700">
+                <p><span class="font-medium">Unit Price:</span> ₱<span x-text="quote?.unit_price?.toLocaleString()"></span></p>
+                <p><span class="font-medium">Quantity:</span> <span x-text="quote?.quantity"></span> units × <span x-text="quote?.days"></span> days</p>
+                <p><span class="font-medium">Pickup Store:</span> <span x-text="stores.find(s => s.ID == rental.storeId)?.Name"></span></p>
+              </div>
+              <div class="mt-4 pt-4 border-t border-green-200 text-right">
+                <span class="text-gray-600">Total:</span>
+                <span class="text-2xl font-bold text-accent-500 ml-2">₱<span x-text="quote?.total_price?.toLocaleString()"></span></span>
+              </div>
+              
+              <!-- Proceed to Checkout Button -->
+              <button 
+                @click="proceedToCheckout()"
+                class="w-full mt-4 bg-accent-500 hover:bg-accent-600 text-white font-semibold py-3 rounded-lg transition-colors">
+                Proceed to Checkout
+              </button>
+            </div>
+            
+            <!-- ==================== ERROR MESSAGE ==================== -->
+            <div x-show="quoteError" class="mt-6 bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
+              <span x-text="quoteError"></span>
+            </div>
+            
+          </div>
+        </div>
+      </template>
+      
     </div>
   </div>
 
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
   <script>
-    document.getElementById("quoteForm").addEventListener("submit", async function(e) {
-      e.preventDefault();
+    function catalogueApp() {
+      return {
+        // ========================================
+        // DATA (State Variables)
+        // ========================================
+        
+        products: [],           // Array of products from /catalogue API
+        stores: [],             // Array of store locations
+        loading: true,          // Shows loading spinner
+        filter: 'all',          // Current filter: 'all', 'L', 'M', 'S'
+        showModal: false,       // Controls modal visibility
+        selectedProduct: null,  // Product being viewed in modal
+        
+        // Rental form data
+        rental: {
+          storeId: 1,
+          days: 7,
+          quantity: 1
+        },
+        
+        // Quote response data
+        quote: null,
+        quoteLoading: false,
+        quoteError: null,
 
-      const res = await fetch("/quote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          size: document.getElementById("size").value,
-          days: parseInt(document.getElementById("days").value)
-        })
-      });
+        // ========================================
+        // AUTHENTICATION STATE
+        // ========================================
+        
+        isLoggedIn: false,
+        user: null,
+        token: null,
 
-      const data = await res.json();
-      const resultContainer = document.getElementById("resultContainer");
-      const resultText = document.getElementById("result");
-      
-      resultText.innerText = "PHP " + data.total_price;
-      resultContainer.classList.remove("hidden");
-      
-      // Smooth scroll to result
-      resultContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
+        // ========================================
+        // LIFECYCLE - Runs when page loads
+        // ========================================
+        
+        /*
+          init() METHOD EXPLAINED:
+          - Special method name that Alpine automatically calls
+          - Runs ONCE when the component is initialized
+          - Perfect for: fetching initial data, setting up listeners
+          - Can be async (Alpine waits for it)
+          - Similar to: mounted() in Vue, useEffect([]) in React
+          
+          Other lifecycle hooks:
+          - destroy() - called when element is removed from DOM
+        */
+        async init() {
+          console.log('App initialized! Fetching data...');
+          await this.checkAuth();
+          await this.loadProducts();
+          await this.loadStores();
+        },
+
+        // ========================================
+        // AUTHENTICATION METHODS
+        // ========================================
+        
+        // Verify token with server
+        async checkAuth() {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            this.isLoggedIn = false;
+            return;
+          }
+          
+          try {
+            const response = await fetch('/api/me', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.token = token;
+              this.user = data.user;
+              this.isLoggedIn = true;
+              localStorage.setItem('user', JSON.stringify(data.user));
+            } else {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              this.isLoggedIn = false;
+            }
+          } catch (error) {
+            console.error('Could not verify token:', error);
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+              this.token = token;
+              this.user = JSON.parse(userStr);
+              this.isLoggedIn = true;
+            }
+          }
+        },
+        
+        // Clear auth data and log out
+        logout() {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          this.isLoggedIn = false;
+          this.user = null;
+          this.token = null;
+        },
+
+        // ========================================
+        // API METHODS
+        // ========================================
+        
+        // Fetch products from backend
+        async loadProducts() {
+          this.loading = true;
+          try {
+            const response = await fetch('/catalogue');
+            this.products = await response.json();
+            console.log('Products loaded:', this.products);
+          } catch (error) {
+            console.error('Failed to load products:', error);
+          }
+          this.loading = false;
+        },
+
+        // Fetch store locations
+        async loadStores() {
+          try {
+            const response = await fetch('/stores');
+            this.stores = await response.json();
+            if (this.stores.length > 0) {
+              this.rental.storeId = this.stores[0].ID;
+            }
+          } catch (error) {
+            console.error('Failed to load stores:', error);
+          }
+        },
+
+        // ========================================
+        // COMPUTED PROPERTY - Filters products
+        // ========================================
+        
+        /*
+          GETTER (Computed Property) EXPLAINED:
+          - JavaScript getter that Alpine treats as reactive
+          - Accessed like a property: this.filteredProducts (no parentheses)
+          - Automatically re-evaluates when dependencies change
+          - Dependencies here: this.filter and this.products
+          - Similar to Vue's computed properties or React's useMemo
+        */
+        get filteredProducts() {
+          if (this.filter === 'all') return this.products;
+          return this.products.filter(p => p.size === this.filter);
+        },
+
+        // ========================================
+        // ACTION METHODS
+        // ========================================
+        
+        // Open modal with selected product
+        openModal(product) {
+          this.selectedProduct = product;
+          this.quote = null;
+          this.quoteError = null;
+          this.rental.quantity = 1;
+          this.showModal = true;
+        },
+
+        // Get price quote from backend
+        async getQuote() {
+          this.quoteLoading = true;
+          this.quote = null;
+          this.quoteError = null;
+
+          try {
+            const response = await fetch('/quote', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                collectible_id: this.selectedProduct.id,
+                store_id: parseInt(this.rental.storeId),
+                days: parseInt(this.rental.days),
+                quantity: parseInt(this.rental.quantity)
+              })
+            });
+
+            const data = await response.json();
+            if (data.available === false) {
+              this.quoteError = data.message;
+            } else {
+              this.quote = data;
+            }
+          } catch (error) {
+            this.quoteError = 'Failed to get quote. Please try again.';
+          }
+          this.quoteLoading = false;
+        },
+
+        // Save data and navigate to checkout
+        proceedToCheckout() {
+          localStorage.setItem('checkoutData', JSON.stringify({
+            product: this.selectedProduct,
+            quote: this.quote,
+            rental: this.rental
+          }));
+          window.location.href = '/checkout';
+        }
+      }
+    }
   </script>
+
 </body>
 </html>

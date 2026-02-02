@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037',
+              950: '#0a2920',
+            },
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>[x-cloak] { display: none !important; }</style>
+</head>
+
+<!--
+  =============================================
+  PAYMENT PAGE
+  =============================================
+  Collects billing details and processes payment via PayMongo.
+  Supports: Cards, GCash, GrabPay, BPI, UBP
+-->
+<body x-data="paymentApp()" class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        <a href="/rentals" class="text-white/80 hover:text-white flex items-center gap-2 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to Rentals
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- ==================== LOADING STATE ==================== -->
+    <div x-show="loading" class="text-center py-16">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Loading rental details...</p>
+    </div>
+
+    <!-- ==================== ERROR STATE ==================== -->
+    <div x-show="!loading && error" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">❌</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Error</h2>
+        <p class="text-gray-600 mb-8" x-text="error"></p>
+        <a href="/rentals" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+          Back to Rentals
+        </a>
+      </div>
+    </div>
+
+    <!-- ==================== PAYMENT FORM ==================== -->
+    <div x-show="!loading && !error && rental" x-cloak>
+      <h1 class="text-3xl font-bold text-gray-800 mb-8">Complete Payment</h1>
+
+      <div class="grid lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column (2/3 width) - Forms -->
+        <div class="lg:col-span-2 space-y-6">
+          
+          <!-- ==================== PAYMENT METHOD SELECTION ==================== -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Payment Method</h2>
+            
+            <!-- Notice for amount restrictions -->
+            <div x-show="hasUnavailableMethods" class="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p class="text-amber-700 text-sm font-medium">⚠️ Some payment methods are unavailable</p>
+              <p class="text-amber-600 text-xs mt-1">Your order total of ₱<span x-text="rental?.total_price?.toLocaleString()"></span> exceeds limits for some methods.</p>
+            </div>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              
+              <!-- Card Option (up to ₱10,000,000) -->
+              <label 
+                x-show="isMethodAvailable('card')"
+                class="relative flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                :class="paymentMethod === 'card' ? 'border-brand-900 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                <input type="radio" x-model="paymentMethod" value="card" class="sr-only">
+                <span class="text-3xl mb-2">💳</span>
+                <span class="text-sm font-medium text-gray-700">Credit/Debit</span>
+                <span class="text-xs text-gray-400">up to ₱10M</span>
+              </label>
+              
+              <!-- GCash Option (up to ₱100,000) -->
+              <label 
+                x-show="isMethodAvailable('gcash')"
+                class="relative flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                :class="paymentMethod === 'gcash' ? 'border-brand-900 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                <input type="radio" x-model="paymentMethod" value="gcash" class="sr-only">
+                <span class="text-3xl mb-2">📱</span>
+                <span class="text-sm font-medium text-gray-700">GCash</span>
+                <span class="text-xs text-gray-400">up to ₱100K</span>
+              </label>
+              
+              <!-- GrabPay Option (up to ₱100,000) -->
+              <label 
+                x-show="isMethodAvailable('grab_pay')"
+                class="relative flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                :class="paymentMethod === 'grab_pay' ? 'border-brand-900 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                <input type="radio" x-model="paymentMethod" value="grab_pay" class="sr-only">
+                <span class="text-3xl mb-2">🟢</span>
+                <span class="text-sm font-medium text-gray-700">GrabPay</span>
+                <span class="text-xs text-gray-400">up to ₱100K</span>
+              </label>
+              
+              <!-- BPI Option (up to ₱50,000) -->
+              <label 
+                x-show="isMethodAvailable('dob_bpi')"
+                class="relative flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                :class="paymentMethod === 'dob_bpi' ? 'border-brand-900 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                <input type="radio" x-model="paymentMethod" value="dob_bpi" class="sr-only">
+                <span class="text-3xl mb-2">🏦</span>
+                <span class="text-sm font-medium text-gray-700">BPI</span>
+                <span class="text-xs text-gray-400">up to ₱50K</span>
+              </label>
+              
+              <!-- UBP Option (up to ₱100,000) -->
+              <label 
+                x-show="isMethodAvailable('dob_ubp')"
+                class="relative flex flex-col items-center p-4 border-2 rounded-xl cursor-pointer transition-all"
+                :class="paymentMethod === 'dob_ubp' ? 'border-brand-900 bg-brand-50' : 'border-gray-200 hover:border-gray-300'">
+                <input type="radio" x-model="paymentMethod" value="dob_ubp" class="sr-only">
+                <span class="text-3xl mb-2">🏛️</span>
+                <span class="text-sm font-medium text-gray-700">UnionBank</span>
+                <span class="text-xs text-gray-400">up to ₱100K</span>
+              </label>
+              
+            </div>
+
+            <!-- Unavailable Methods Info -->
+            <div x-show="unavailableMethodsInfo.length > 0" class="mt-4 pt-4 border-t border-gray-200">
+              <p class="text-xs text-gray-500 mb-2">Unavailable for this amount:</p>
+              <div class="flex flex-wrap gap-2">
+                <template x-for="method in unavailableMethodsInfo" :key="method.id">
+                  <span class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-400 rounded text-xs">
+                    <span x-text="method.icon"></span>
+                    <span x-text="method.name"></span>
+                    <span class="text-gray-300">(max ₱<span x-text="method.limit.toLocaleString()"></span>)</span>
+                  </span>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== CARD DETAILS (Only for card payments) ==================== -->
+          <div x-show="paymentMethod === 'card'" class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Card Details</h2>
+            
+            <!-- Card Number -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Card Number</label>
+              <input 
+                type="text" 
+                x-model="card.number" 
+                placeholder="4343 4343 4343 4345"
+                maxlength="19"
+                @input="formatCardNumber($event)"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 font-mono">
+              <p class="text-xs text-gray-500 mt-1">Test card: 4343 4343 4343 4345</p>
+            </div>
+            
+            <!-- Expiry and CVC Row -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Expiry Date</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <input 
+                    type="text" 
+                    x-model="card.expMonth" 
+                    placeholder="MM"
+                    maxlength="2"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-center">
+                  <input 
+                    type="text" 
+                    x-model="card.expYear" 
+                    placeholder="YYYY"
+                    maxlength="4"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-center">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">CVC</label>
+                <input 
+                  type="text" 
+                  x-model="card.cvc" 
+                  placeholder="123"
+                  maxlength="4"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+          </div>
+
+          <!-- ==================== BILLING DETAILS ==================== -->
+          <div class="bg-white rounded-2xl shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Billing Details</h2>
+            
+            <!-- Name and Email Row -->
+            <div class="grid sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                <input 
+                  type="text" 
+                  x-model="billing.name" 
+                  placeholder="Juan Dela Cruz"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                <input 
+                  type="email" 
+                  x-model="billing.email" 
+                  placeholder="juan@example.com"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+            
+            <!-- Phone -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+              <input 
+                type="tel" 
+                x-model="billing.phone" 
+                placeholder="+639123456789"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            
+            <!-- Address -->
+            <div class="mb-4">
+              <label class="block text-sm font-medium text-gray-700 mb-2">Address</label>
+              <input 
+                type="text" 
+                x-model="billing.address" 
+                placeholder="123 Main Street, Barangay"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+            </div>
+            
+            <!-- City, State, Postal Row -->
+            <div class="grid sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">City</label>
+                <input 
+                  type="text" 
+                  x-model="billing.city" 
+                  placeholder="Manila"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">State/Province</label>
+                <input 
+                  type="text" 
+                  x-model="billing.state" 
+                  placeholder="Metro Manila"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
+                <input 
+                  type="text" 
+                  x-model="billing.postal" 
+                  placeholder="1000"
+                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Column (1/3 width) - Order Summary -->
+        <div>
+          <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h2>
+            
+            <!-- Payment Timer Warning -->
+            <div x-show="timeRemaining !== null && timeRemaining > 0" class="mb-4 p-3 rounded-lg"
+                 :class="timeRemaining < 60 ? 'bg-red-50 border border-red-200' : 'bg-amber-50 border border-amber-200'">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium" :class="timeRemaining < 60 ? 'text-red-700' : 'text-amber-700'">
+                  ⏱️ Time remaining
+                </span>
+                <span class="font-bold text-lg" :class="timeRemaining < 60 ? 'text-red-600' : 'text-amber-600'" x-text="formatTime(timeRemaining)"></span>
+              </div>
+              <p class="text-xs mt-1" :class="timeRemaining < 60 ? 'text-red-500' : 'text-amber-600'">
+                Complete payment before time expires
+              </p>
+            </div>
+
+            <!-- Expired Warning -->
+            <div x-show="isExpired" class="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-center">
+              <p class="text-red-600 font-medium">⚠️ This order has expired</p>
+              <p class="text-red-500 text-sm mt-1">Please create a new order to continue.</p>
+              <a href="/" class="inline-block mt-3 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                Back to Catalogue
+              </a>
+            </div>
+            
+            <!-- Rental Details -->
+            <div class="flex gap-4 mb-4 pb-4 border-b border-gray-200">
+              <img 
+                :src="rental?.image_url" 
+                :alt="rental?.collectible"
+                onerror="this.src='https://via.placeholder.com/80?text=No+Image'"
+                class="w-16 h-16 object-cover rounded-lg">
+              <div class="flex-1">
+                <h3 class="font-medium text-gray-800 text-sm" x-text="rental?.collectible"></h3>
+                <p class="text-xs text-gray-500">
+                  <span x-text="rental?.quantity"></span> unit(s) × <span x-text="rental?.days"></span> days
+                </p>
+                <p class="text-xs text-brand-700 mt-1">📍 <span x-text="rental?.store"></span></p>
+              </div>
+            </div>
+            
+            <!-- Price -->
+            <div class="space-y-2 text-sm mb-4">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Subtotal</span>
+                <span class="font-medium">₱<span x-text="rental?.total_price?.toLocaleString()"></span></span>
+              </div>
+            </div>
+            
+            <hr class="my-4">
+            
+            <div class="flex justify-between text-lg">
+              <span class="font-semibold text-gray-800">Total</span>
+              <span class="font-bold text-accent-500">₱<span x-text="rental?.total_price?.toLocaleString()"></span></span>
+            </div>
+
+            <!-- Pay Button -->
+            <button 
+              x-show="!isExpired"
+              @click="submitPayment()" 
+              :disabled="submitting || !isFormValid || isExpired"
+              class="w-full mt-6 bg-accent-500 hover:bg-accent-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors">
+              <span x-show="!submitting">
+                Pay ₱<span x-text="rental?.total_price?.toLocaleString()"></span>
+              </span>
+              <span x-show="submitting" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+              </span>
+            </button>
+
+            <!-- Payment Method Info -->
+            <div x-show="!isExpired" class="mt-4 p-3 bg-gray-50 rounded-lg">
+              <p class="text-xs text-gray-500 text-center">
+                <span x-show="paymentMethod === 'card'">💳 You will be redirected for 3DS verification if required</span>
+                <span x-show="paymentMethod === 'gcash'">📱 You will be redirected to GCash to complete payment</span>
+                <span x-show="paymentMethod === 'grab_pay'">🟢 You will be redirected to GrabPay to complete payment</span>
+                <span x-show="paymentMethod === 'dob_bpi'">🏦 You will be redirected to BPI Online to complete payment</span>
+                <span x-show="paymentMethod === 'dob_ubp'">🏛️ You will be redirected to UnionBank Online to complete payment</span>
+              </p>
+            </div>
+
+            <p class="text-xs text-gray-500 text-center mt-4">
+              🔒 Secured by PayMongo
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==================== ERROR ALERT ==================== -->
+    <div 
+      x-show="paymentError" 
+      x-cloak
+      class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-4 rounded-xl shadow-lg max-w-sm">
+      <div class="flex items-start gap-3">
+        <span class="text-xl">❌</span>
+        <div>
+          <p class="font-medium">Payment Error</p>
+          <p class="text-sm text-white/80" x-text="paymentError"></p>
+        </div>
+        <button @click="paymentError = null" class="text-white/80 hover:text-white">✕</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    function paymentApp() {
+      return {
+        // ========================================
+        // DATA
+        // ========================================
+        
+        rental: null,
+        loading: true,
+        error: null,
+        submitting: false,
+        paymentError: null,
+        
+        // Timer state
+        timeRemaining: null,  // Seconds remaining for payment
+        timerInterval: null,  // Timer interval reference
+        statusCheckInterval: null,  // Status polling interval
+        isExpired: false,     // Whether rental has expired
+        
+        // Payment method limits (in PHP)
+        paymentLimits: {
+          card: 10000000,      // ₱10,000,000
+          gcash: 100000,       // ₱100,000
+          grab_pay: 100000,    // ₱100,000
+          dob_ubp: 100000,     // ₱100,000
+          dob_bpi: 50000       // ₱50,000
+        },
+
+        // Method display info for unavailable list
+        methodInfo: {
+          card: { icon: '💳', name: 'Credit/Debit' },
+          gcash: { icon: '📱', name: 'GCash' },
+          grab_pay: { icon: '🟢', name: 'GrabPay' },
+          dob_ubp: { icon: '🏛️', name: 'UnionBank' },
+          dob_bpi: { icon: '🏦', name: 'BPI' }
+        },
+        
+        // Selected payment method
+        paymentMethod: 'gcash',
+        
+        // Card details (only for card payments)
+        card: {
+          number: '',
+          expMonth: '',
+          expYear: '',
+          cvc: ''
+        },
+        
+        // Billing details
+        billing: {
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: '',
+          state: '',
+          postal: ''
+        },
+        
+        // Auth
+        token: null,
+
+        // ========================================
+        // LIFECYCLE
+        // ========================================
+        
+        async init() {
+          // Check authentication
+          this.token = localStorage.getItem('token');
+          if (!this.token) {
+            window.location.href = '/login';
+            return;
+          }
+
+          // Get rental ID from URL
+          const params = new URLSearchParams(window.location.search);
+          const rentalId = params.get('rental_id');
+          
+          if (!rentalId) {
+            this.error = 'No rental ID provided';
+            this.loading = false;
+            return;
+          }
+
+          await this.loadRental(rentalId);
+
+          // Auto-select first available payment method based on amount
+          this.selectFirstAvailableMethod();
+          
+          // Pre-fill billing from user data
+          const userStr = localStorage.getItem('user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            this.billing.name = user.name || '';
+            this.billing.email = user.email || '';
+            this.billing.phone = user.phone || '';
+          }
+
+          // Start polling for status changes (every 5 seconds)
+          this.startStatusPolling();
+        },
+
+        // ========================================
+        // LOAD RENTAL
+        // ========================================
+        
+        async loadRental(rentalId) {
+          try {
+            const response = await fetch(`/api/rentals/${rentalId}`, {
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.rental = data.rental;
+              
+              // Check if already expired
+              if (this.rental.status === 'expired') {
+                this.isExpired = true;
+                this.error = 'This order has expired. Please create a new order.';
+              } else if (this.rental.status !== 'pending_payment') {
+                this.error = 'This rental cannot be paid. Status: ' + this.rental.status;
+              } else if (data.rental.time_remaining !== null && data.rental.time_remaining !== undefined) {
+                // Start countdown timer
+                this.timeRemaining = data.rental.time_remaining;
+                this.startTimer();
+              }
+            } else {
+              this.error = data.error || 'Failed to load rental';
+            }
+          } catch (err) {
+            console.error('Failed to load rental:', err);
+            this.error = 'Failed to load rental details';
+          }
+          this.loading = false;
+        },
+
+        // ========================================
+        // TIMER
+        // ========================================
+
+        startTimer() {
+          // Clear any existing timer
+          if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+          }
+
+          // Update every second
+          this.timerInterval = setInterval(() => {
+            if (this.timeRemaining > 0) {
+              this.timeRemaining--;
+            } else {
+              // Timer expired
+              clearInterval(this.timerInterval);
+              this.isExpired = true;
+              this.rental.status = 'expired';
+            }
+          }, 1000);
+        },
+
+        // Format seconds to MM:SS
+        formatTime(seconds) {
+          if (seconds === null || seconds === undefined) return '--:--';
+          const mins = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          return `${mins}:${secs.toString().padStart(2, '0')}`;
+        },
+
+        // Cleanup timer on page leave
+        destroy() {
+          if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+          }
+          if (this.statusCheckInterval) {
+            clearInterval(this.statusCheckInterval);
+          }
+        },
+
+        // ========================================
+        // STATUS POLLING
+        // ========================================
+
+        startStatusPolling() {
+          // Poll rental status every 5 seconds to detect backend changes
+          this.statusCheckInterval = setInterval(async () => {
+            if (!this.rental) return;
+            
+            try {
+              const response = await fetch(`/api/rentals/${this.rental.id}`, {
+                headers: { 'Authorization': 'Bearer ' + this.token }
+              });
+              
+              const data = await response.json();
+              
+              if (data.success && data.rental) {
+                const newStatus = data.rental.status;
+                
+                // If status changed from pending_payment, handle it
+                if (this.rental.status === 'pending_payment' && newStatus !== 'pending_payment') {
+                  if (newStatus === 'expired') {
+                    // Rental expired - redirect to failed page
+                    window.location.href = '/payment-failed?reason=expired';
+                  } else if (newStatus === 'active') {
+                    // Rental activated - redirect to success page
+                    window.location.href = '/payment-success?rental_id=' + this.rental.id;
+                  }
+                }
+                
+                // Update rental data
+                this.rental = data.rental;
+                if (data.rental.time_remaining !== null && data.rental.time_remaining !== undefined) {
+                  this.timeRemaining = data.rental.time_remaining;
+                }
+              }
+            } catch (err) {
+              console.error('Status polling error:', err);
+              // Don't show error to user, just log it
+            }
+          }, 5000); // Check every 5 seconds
+        },
+
+        // ========================================
+        // FORM VALIDATION
+        // ========================================
+        
+        get isFormValid() {
+          // Basic billing validation
+          if (!this.billing.name || !this.billing.email || !this.billing.phone) {
+            return false;
+          }
+          
+          // Card validation (only if card payment)
+          if (this.paymentMethod === 'card') {
+            const cardNum = this.card.number.replace(/\s/g, '');
+            if (cardNum.length < 13 || !this.card.expMonth || !this.card.expYear || !this.card.cvc) {
+              return false;
+            }
+          }
+
+          // Make sure selected method is valid for amount
+          if (!this.isMethodAvailable(this.paymentMethod)) {
+            return false;
+          }
+          
+          return true;
+        },
+
+        // ========================================
+        // PAYMENT METHOD AVAILABILITY
+        // ========================================
+
+        // Check if a payment method is available for the current amount
+        isMethodAvailable(method) {
+          const amount = this.rental?.total_price || 0;
+          const limit = this.paymentLimits[method] || 0;
+          return amount <= limit;
+        },
+
+        // Check if any methods are unavailable
+        get hasUnavailableMethods() {
+          const amount = this.rental?.total_price || 0;
+          return Object.values(this.paymentLimits).some(limit => amount > limit);
+        },
+
+        // Get list of unavailable methods with their info
+        get unavailableMethodsInfo() {
+          const amount = this.rental?.total_price || 0;
+          return Object.entries(this.paymentLimits)
+            .filter(([method, limit]) => amount > limit)
+            .map(([method, limit]) => ({
+              id: method,
+              ...this.methodInfo[method],
+              limit: limit
+            }))
+            .sort((a, b) => b.limit - a.limit);
+        },
+
+        // Auto-select first available payment method
+        selectFirstAvailableMethod() {
+          const preferredOrder = ['gcash', 'grab_pay', 'dob_ubp', 'dob_bpi', 'card'];
+          for (const method of preferredOrder) {
+            if (this.isMethodAvailable(method)) {
+              this.paymentMethod = method;
+              return;
+            }
+          }
+          // If no method available (amount too high), default to card
+          this.paymentMethod = 'card';
+        },
+
+        // ========================================
+        // HELPERS
+        // ========================================
+        
+        // Format card number with spaces
+        formatCardNumber(event) {
+          let value = event.target.value.replace(/\s/g, '').replace(/\D/g, '');
+          let formatted = value.match(/.{1,4}/g)?.join(' ') || value;
+          this.card.number = formatted;
+        },
+
+        // ========================================
+        // SUBMIT PAYMENT
+        // ========================================
+        
+        async submitPayment() {
+          if (!this.isFormValid) {
+            this.paymentError = 'Please fill in all required fields';
+            return;
+          }
+
+          this.submitting = true;
+          this.paymentError = null;
+
+          try {
+            // Build request body
+            const body = {
+              rental_id: this.rental.id,
+              payment_method: this.paymentMethod,
+              billing_name: this.billing.name,
+              billing_email: this.billing.email,
+              billing_phone: this.billing.phone,
+              billing_address: this.billing.address,
+              billing_city: this.billing.city,
+              billing_state: this.billing.state,
+              billing_postal: this.billing.postal,
+              success_url: window.location.origin + '/payment/success?rental_id=' + this.rental.id,
+              failed_url: window.location.origin + '/payment/failed?rental_id=' + this.rental.id
+            };
+
+            // Add card details if card payment
+            if (this.paymentMethod === 'card') {
+              body.card_number = this.card.number.replace(/\s/g, '');
+              body.exp_month = parseInt(this.card.expMonth);
+              body.exp_year = parseInt(this.card.expYear);
+              body.cvc = this.card.cvc;
+            }
+
+            // Send payment request
+            const response = await fetch('/api/payments', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.token
+              },
+              body: JSON.stringify(body)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              // Check if redirect is needed (e-wallets, banks, or 3DS)
+              if (data.checkout_url) {
+                // Redirect to payment provider
+                window.location.href = data.checkout_url;
+              } else if (data.status === 'paid') {
+                // Direct success (rare for cards)
+                window.location.href = '/payment/success?rental_id=' + this.rental.id;
+              } else {
+                // Unknown state
+                this.paymentError = 'Unexpected payment state: ' + data.status;
+              }
+            } else {
+              this.paymentError = data.error || 'Payment failed';
+            }
+          } catch (err) {
+            console.error('Payment error:', err);
+            this.paymentError = 'Payment failed. Please try again.';
+          } finally {
+            this.submitting = false;
+          }
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>

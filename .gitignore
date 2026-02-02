@@ -1,0 +1,27 @@
+# Environment variables (contains secrets!)
+.env
+
+# Compiled binaries
+main.exe
+main
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# Vendor (if not used)
+# vendor/

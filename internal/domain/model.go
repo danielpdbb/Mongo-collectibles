@@ -1,57 +1,34 @@
 package domain
 
+import "gorm.io/gorm"
+
 type Store struct {
-	ID   int
+	gorm.Model
 	Name string
 }
 
 type Warehouse struct {
-	ID   int
+	gorm.Model
 	Name string
 }
 
 type Collectible struct {
-	ID   int
-	Name string
-	Size string // S, M, L
+	gorm.Model
+	Name     string `json:"name"`
+	Size     string `json:"size"`
+	ImageURL string `json:"imageURL"`
 }
 
 type CollectibleUnit struct {
-	ID            int
-	CollectibleID int
-	WarehouseID   int
+	gorm.Model
+	CollectibleID uint
+	WarehouseID   uint
 	IsAvailable   bool
 }
 
 type WarehouseDistance struct {
-	WarehouseID int
-	StoreID     int
+	gorm.Model
+	WarehouseID uint
+	StoreID     uint
 	Distance    int
-}
-
-type Customer struct {
-	ID      int
-	Name    string
-	Email   string
-	Phone   string
-	Address string
-}
-
-type Rental struct {
-	ID                int
-	CollectibleUnitID int
-	StoreID           int
-	CustomerID        int
-	RentalDays        int
-	TotalPrice        int
-	Status            string // PENDING, PAID
-}
-
-type Payment struct {
-	ID        int
-	RentalID  int
-	Amount    int
-	Method    string
-	Status    string
-	Reference string
 }
