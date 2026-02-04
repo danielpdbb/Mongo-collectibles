@@ -132,69 +132,6 @@ A premium MCU collectibles rental platform built with Go, featuring PayMongo pay
 └─────────────────┘
 ```
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Go 1.23+
-- PostgreSQL 15+
-- PayMongo Test Account
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/mongo-collectibles.git
-cd mongo-collectibles
-```
-
-2. **Set up PostgreSQL**
-```bash
-# Create database
-createdb mongocollectibles
-
-# Or via psql
-psql -U postgres
-CREATE DATABASE mongocollectibles;
-```
-
-3. **Configure environment variables**
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-```env
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=yourpassword
-DB_NAME=mongocollectibles
-
-# PayMongo API Keys (Test Mode)
-PAYMONGO_SECRET_KEY=sk_test_xxxxxxxxxxxx
-PAYMONGO_PUBLIC_KEY=pk_test_xxxxxxxxxxxx
-
-# JWT
-JWT_SECRET=your-secret-key
-```
-
-4. **Run the application**
-```bash
-go run ./cmd
-```
-
-5. **Seed the database** (first run only)
-Uncomment line 37 in `cmd/main.go`:
-```go
-repository.SeedData()
-```
-
-6. **Visit the application**
-```
-http://localhost:8080
-```
 
 ## 💰 Pricing Structure
 
@@ -353,10 +290,6 @@ For production, update `.env`:
 PAYMONGO_SECRET_KEY=sk_live_xxxxxxxxxxxx
 PAYMONGO_PUBLIC_KEY=pk_live_xxxxxxxxxxxx
 ```
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
