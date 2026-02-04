@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,9 +49,44 @@ func formatAmount(amount float64) string {
 	return result.String()
 }
 
+// activatePaymentRentals activates all rentals associated with a payment
+func activatePaymentRentals(payment *domain.Payment) {
+	if payment.RentalIDs != "" {
+		// Multi-rental payment
+		ids := strings.Split(payment.RentalIDs, ",")
+		for _, idStr := range ids {
+			id, err := strconv.ParseUint(strings.TrimSpace(idStr), 10, 32)
+			if err == nil {
+				ActivateRental(uint(id))
+			}
+		}
+	} else {
+		// Single rental payment
+		ActivateRental(payment.RentalID)
+	}
+}
+
+// cancelPaymentRentals cancels all rentals associated with a payment
+func cancelPaymentRentals(payment *domain.Payment) {
+	if payment.RentalIDs != "" {
+		// Multi-rental payment
+		ids := strings.Split(payment.RentalIDs, ",")
+		for _, idStr := range ids {
+			id, err := strconv.ParseUint(strings.TrimSpace(idStr), 10, 32)
+			if err == nil {
+				CancelRental(uint(id))
+			}
+		}
+	} else {
+		// Single rental payment
+		CancelRental(payment.RentalID)
+	}
+}
+
 // PaymentRequest contains all data needed to create a payment
 type PaymentRequest struct {
 	RentalID      uint   `json:"rental_id"`
+	RentalIDs     []uint `json:"rental_ids"`     // For cart checkout with multiple rentals
 	Amount        int    `json:"amount"`         // In PHP (will convert to centavos)
 	PaymentMethod string `json:"payment_method"` // card, gcash, grab_pay, dob_ubp, dob_bpi
 
@@ -119,9 +155,23 @@ func CreatePayment(req PaymentRequest) (*PaymentResponse, error) {
 	// Convert PHP to centavos (PayMongo requires centavos)
 	amountInCentavos := req.Amount * 100
 
+	// Build rental IDs string for storage
+	rentalIDsStr := ""
+	if len(req.RentalIDs) > 0 {
+		for i, id := range req.RentalIDs {
+			if i > 0 {
+				rentalIDsStr += ","
+			}
+			rentalIDsStr += fmt.Sprintf("%d", id)
+		}
+	} else {
+		rentalIDsStr = fmt.Sprintf("%d", req.RentalID)
+	}
+
 	// Create payment record in our database
 	payment := &domain.Payment{
 		RentalID:      req.RentalID,
+		RentalIDs:     rentalIDsStr,
 		Amount:        amountInCentavos,
 		Currency:      "PHP",
 		Status:        "pending",
@@ -336,8 +386,8 @@ func createCardPayment(payment *domain.Payment, req PaymentRequest, amount int, 
 		payment.PaidAt = &now
 		repository.DB.Save(payment)
 
-		// ACTIVATE THE RENTAL - Non-3DS card payment succeeded
-		ActivateRental(payment.RentalID)
+		// ACTIVATE ALL RENTALS - Non-3DS card payment succeeded
+		activatePaymentRentals(payment)
 
 		return &PaymentResponse{
 			Success:   true,
@@ -402,8 +452,8 @@ func VerifyPayment(paymentID uint) (*PaymentResponse, error) {
 		payment.PaidAt = &now
 		repository.DB.Save(payment)
 
-		// ACTIVATE THE RENTAL - Payment successful, confirm the rental
-		ActivateRental(payment.RentalID)
+		// ACTIVATE ALL RENTALS - Payment successful, confirm the rentals
+		activatePaymentRentals(&payment)
 
 		// If source is chargeable, we need to create a payment
 		if status == "chargeable" && payment.SourceID != "" {
@@ -422,8 +472,8 @@ func VerifyPayment(paymentID uint) (*PaymentResponse, error) {
 		payment.Status = "failed"
 		repository.DB.Save(payment)
 
-		// CANCEL THE RENTAL - Return units to available
-		CancelRental(payment.RentalID)
+		// CANCEL ALL RENTALS - Return units to available
+		cancelPaymentRentals(&payment)
 
 		return &PaymentResponse{
 			Success:   false,

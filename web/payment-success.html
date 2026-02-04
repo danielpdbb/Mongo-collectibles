@@ -93,9 +93,22 @@
         paymentStatus: null,
 
         async init() {
-          // Get rental ID from URL
+          // Get rental ID from URL - support both single and multiple rentals
           const params = new URLSearchParams(window.location.search);
-          this.rentalId = params.get('rental_id') || 'N/A';
+          const rentalId = params.get('rental_id');
+          const rentalIds = params.get('rental_ids');
+          
+          // Display rental IDs
+          if (rentalIds) {
+            // Multiple rentals from cart
+            this.rentalId = rentalIds;
+          } else if (rentalId) {
+            // Single rental
+            this.rentalId = rentalId;
+          } else {
+            this.rentalId = 'N/A';
+          }
+          
           this.paymentId = params.get('payment_id');
 
           // Verify payment status
@@ -110,8 +123,11 @@
           }
 
           try {
+            // Get the first rental ID for verification (in multi-rental, all share same payment)
+            const firstRentalId = this.rentalId.split(',')[0].trim();
+            
             // Get payment for this rental
-            const response = await fetch(`/api/rentals/${this.rentalId}/payment`, {
+            const response = await fetch(`/api/rentals/${firstRentalId}/payment`, {
               headers: { 'Authorization': 'Bearer ' + token }
             });
 
@@ -128,7 +144,7 @@
 
               // If payment actually failed/expired, redirect to failed page
               if (verifyData.status === 'failed' || verifyData.status === 'expired' || verifyData.status === 'cancelled' || !verifyData.success) {
-                window.location.href = '/payment/failed?rental_id=' + this.rentalId;
+                window.location.href = '/payment/failed?rental_ids=' + this.rentalId;
                 return;
               }
             }

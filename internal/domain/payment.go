@@ -14,6 +14,7 @@ import (
 type Payment struct {
 	gorm.Model
 	RentalID        uint       `json:"rental_id"`
+	RentalIDs       string     `json:"rental_ids"` // Comma-separated IDs for multi-rental payments
 	Rental          Rental     `json:"rental,omitempty"`
 	Amount          int        `json:"amount"`            // Amount in centavos (PHP)
 	Currency        string     `json:"currency"`          // Always "PHP"
