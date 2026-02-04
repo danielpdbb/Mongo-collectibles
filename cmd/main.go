@@ -34,6 +34,8 @@ func main() {
 		&domain.RentalUnit{},     // Allocated units per rental
 		&domain.Payment{},        // Payment records
 		&domain.BillingDetails{}, // Billing information
+		&domain.Cart{},           // Shopping carts
+		&domain.CartItem{},       // Cart items
 	)
 
 	// ⚠️ Seed data - Run ONCE to populate database, then comment out
@@ -49,6 +51,7 @@ func main() {
 	r.GET("/login", api.ShowLogin)         // Login page
 	r.GET("/register", api.ShowRegister)   // Register page
 	r.GET("/payment", api.ShowPayment)     // Payment page
+	r.GET("/cart", api.ShowCart)           // Shopping cart page
 
 	// --------------------
 	// API ROUTES (return JSON)
@@ -72,6 +75,17 @@ func main() {
 	r.GET("/api/rentals/:id", api.AuthRequired(), api.GetRental)                       // Get specific rental
 	r.POST("/api/rentals/:id/cancel", api.AuthRequired(), api.CancelRentalHandler)     // Cancel rental
 	r.GET("/api/rentals/:id/payment", api.AuthRequired(), api.GetRentalPaymentHandler) // Get payment for rental
+
+	// --------------------
+	// CART API ROUTES (all require authentication)
+	// --------------------
+	r.GET("/api/cart", api.AuthRequired(), api.GetCart)                     // Get user's cart
+	r.POST("/api/cart/items", api.AuthRequired(), api.AddToCart)            // Add item to cart
+	r.PUT("/api/cart/items/:id", api.AuthRequired(), api.UpdateCartItem)    // Update cart item
+	r.DELETE("/api/cart/items/:id", api.AuthRequired(), api.RemoveFromCart) // Remove item from cart
+	r.DELETE("/api/cart", api.AuthRequired(), api.ClearCartHandler)         // Clear entire cart
+	r.GET("/api/cart/count", api.AuthRequired(), api.GetCartCount)          // Get cart item count
+	r.POST("/api/cart/checkout", api.AuthRequired(), api.CheckoutCart)      // Checkout cart (create rentals)
 
 	// --------------------
 	// PAYMENT API ROUTES (all require authentication)

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopping Cart - MongoCollectibles</title>
+  
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Alpine.js for reactivity -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Custom Tailwind Config for brand colors -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+              800: '#166534',
+              900: '#144037',
+              950: '#0a2920',
+            },
+            accent: {
+              500: '#f97316',
+              600: '#ea580c',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style>[x-cloak] { display: none !important; }</style>
+</head>
+
+<body x-data="cartApp()" class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- ==================== NAVIGATION ==================== -->
+  <nav class="bg-brand-900 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <a href="/" class="flex items-center space-x-2 text-xl font-bold hover:text-brand-200 transition-colors">
+          <span class="text-2xl">🎭</span>
+          <span>MongoCollectibles</span>
+        </a>
+        
+        <div class="flex items-center space-x-4">
+          <!-- Cart Icon -->
+          <a href="/cart" class="relative text-white hover:text-brand-200 transition-colors">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+            </svg>
+            <span x-show="cart && cart.total_items > 0" 
+                  class="absolute -top-2 -right-2 bg-accent-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold"
+                  x-text="cart?.total_items || 0"></span>
+          </a>
+          
+          <template x-if="isLoggedIn">
+            <div class="flex items-center space-x-4">
+              <span class="text-white/70 hidden sm:block">
+                Hello, <span x-text="user?.name || 'User'" class="text-white font-medium"></span>
+              </span>
+              <a href="/rentals" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors hover:bg-white/10">
+                My Rentals
+              </a>
+              <button @click="logout()" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors hover:bg-white/10">
+                Logout
+              </button>
+            </div>
+          </template>
+          
+          <template x-if="!isLoggedIn">
+            <div class="flex items-center space-x-3">
+              <a href="/login" class="text-white/80 hover:text-white px-3 py-2 rounded-lg transition-colors">
+                Login
+              </a>
+              <a href="/register" class="bg-accent-500 hover:bg-accent-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+                Register
+              </a>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ==================== MAIN CONTENT ==================== -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    
+    <!-- Page Title -->
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">Shopping Cart</h1>
+
+    <!-- ==================== LOGIN REQUIRED STATE ==================== -->
+    <div x-show="!isLoggedIn && !loading" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🔒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Login Required</h2>
+        <p class="text-gray-600 mb-8">You need to be logged in to view your cart.</p>
+        <div class="flex gap-4 justify-center">
+          <a href="/login" class="bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+            Login
+          </a>
+          <a href="/register" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors">
+            Register
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== LOADING STATE ==================== -->
+    <div x-show="loading" class="text-center py-16">
+      <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-brand-900 border-t-transparent"></div>
+      <p class="mt-4 text-gray-600">Loading cart...</p>
+    </div>
+
+    <!-- ==================== EMPTY CART STATE ==================== -->
+    <div x-show="isLoggedIn && !loading && (!cart || cart.items.length === 0)" class="text-center py-16">
+      <div class="bg-white rounded-2xl shadow-sm p-12 max-w-md mx-auto">
+        <div class="text-6xl mb-6">🛒</div>
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
+        <p class="text-gray-600 mb-8">Browse our collection and add some items!</p>
+        <a href="/" class="inline-block bg-brand-900 hover:bg-brand-800 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+          Browse Catalogue
+        </a>
+      </div>
+    </div>
+
+    <!-- ==================== CART CONTENT ==================== -->
+    <div x-show="isLoggedIn && !loading && cart && cart.items.length > 0" x-cloak>
+      
+      <div class="grid lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column - Cart Items -->
+        <div class="lg:col-span-2 space-y-4">
+          
+          <template x-for="item in cart.items" :key="item.id">
+            <div class="bg-white rounded-2xl shadow-sm p-6 flex gap-4">
+              
+              <!-- Product Image -->
+              <img 
+                :src="item.collectible.imageURL" 
+                :alt="item.collectible.name"
+                onerror="this.src='https://via.placeholder.com/100?text=No+Image'"
+                class="w-24 h-24 object-cover rounded-xl flex-shrink-0">
+              
+              <!-- Product Details -->
+              <div class="flex-1 min-w-0">
+                <h3 class="font-semibold text-gray-800 text-lg truncate" x-text="item.collectible.name"></h3>
+                
+                <div class="flex flex-wrap gap-2 mt-2 text-sm text-gray-600">
+                  <span class="bg-brand-100 text-brand-800 px-2 py-0.5 rounded-full">
+                    Size: <span x-text="item.collectible.size"></span>
+                  </span>
+                  <span class="bg-gray-100 px-2 py-0.5 rounded-full">
+                    📍 <span x-text="item.store.Name"></span>
+                  </span>
+                </div>
+                
+                <!-- Quantity and Days Controls -->
+                <div class="flex flex-wrap items-center gap-4 mt-4">
+                  
+                  <!-- Quantity -->
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600">Qty:</span>
+                    <button @click="updateQuantity(item, -1)" 
+                            :disabled="item.quantity <= 1"
+                            class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                      </svg>
+                    </button>
+                    <span class="w-8 text-center font-medium" x-text="item.quantity"></span>
+                    <button @click="updateQuantity(item, 1)" 
+                            :disabled="item.quantity >= item.available_units"
+                            class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  <!-- Days -->
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-600">Days:</span>
+                    <input type="number" 
+                           :value="item.days" 
+                           @change="updateDays(item, $event.target.value)"
+                           min="1" 
+                           max="30"
+                           class="w-16 px-2 py-1 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+                  </div>
+                  
+                  <!-- Available Stock Warning -->
+                  <span x-show="item.quantity > item.available_units" class="text-red-500 text-sm">
+                    ⚠️ Only <span x-text="item.available_units"></span> available
+                  </span>
+                </div>
+              </div>
+              
+              <!-- Price and Remove -->
+              <div class="flex flex-col items-end justify-between">
+                <button @click="removeItem(item.id)" 
+                        class="text-gray-400 hover:text-red-500 transition-colors p-1">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+                
+                <div class="text-right">
+                  <p class="text-sm text-gray-500">
+                    ₱<span x-text="item.unit_price.toLocaleString()"></span>/unit × <span x-text="item.quantity"></span>
+                  </p>
+                  <p class="text-lg font-bold text-accent-500">
+                    ₱<span x-text="item.item_total.toLocaleString()"></span>
+                  </p>
+                </div>
+              </div>
+              
+            </div>
+          </template>
+          
+          <!-- Clear Cart Button -->
+          <div class="flex justify-between items-center pt-4">
+            <a href="/" class="text-brand-700 hover:text-brand-800 font-medium flex items-center gap-2 transition-colors">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              Continue Shopping
+            </a>
+            <button @click="clearCart()" 
+                    class="text-red-500 hover:text-red-600 font-medium transition-colors">
+              Clear Cart
+            </button>
+          </div>
+          
+        </div>
+        
+        <!-- Right Column - Order Summary -->
+        <div>
+          <div class="bg-white rounded-2xl shadow-sm p-6 sticky top-8">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Order Summary</h2>
+            
+            <div class="space-y-3 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-600">Items</span>
+                <span class="font-medium" x-text="cart?.item_count + ' item(s)'"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-600">Total Units</span>
+                <span class="font-medium" x-text="cart?.total_items + ' units'"></span>
+              </div>
+              
+              <hr class="my-4">
+              
+              <div class="flex justify-between text-lg">
+                <span class="font-semibold text-gray-800">Total</span>
+                <span class="font-bold text-accent-500">₱<span x-text="cart?.total_price?.toLocaleString()"></span></span>
+              </div>
+
+              <!-- Payment Limit Notice -->
+              <div x-show="cart?.total_price > 50000 && cart?.total_price <= 10000000" 
+                   class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p class="text-amber-700 text-sm font-medium">ℹ️ Payment Method Notice</p>
+                <p class="text-amber-600 text-xs mt-1" x-text="getPaymentLimitMessage()"></p>
+              </div>
+
+              <!-- Exceeds All Limits Warning -->
+              <div x-show="cart?.total_price > 10000000" 
+                   class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-red-600 text-sm font-medium">⚠️ Exceeds all payment limits</p>
+                <p class="text-red-500 text-xs mt-1">Please reduce your order or contact us for large orders.</p>
+              </div>
+            </div>
+
+            <!-- Checkout Button -->
+            <button 
+              @click="checkout()" 
+              :disabled="checkingOut || !canCheckout"
+              class="w-full mt-6 bg-accent-500 hover:bg-accent-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl transition-colors">
+              <span x-show="!checkingOut">Proceed to Checkout</span>
+              <span x-show="checkingOut" class="flex items-center justify-center gap-2">
+                <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+              </span>
+            </button>
+
+            <p class="text-xs text-gray-500 text-center mt-4">
+              Units will be reserved for 1 minute after checkout
+            </p>
+          </div>
+        </div>
+        
+      </div>
+    </div>
+
+    <!-- ==================== CHECKOUT SUCCESS MODAL ==================== -->
+    <div 
+      x-show="showSuccess" 
+      x-cloak 
+      class="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-8 text-center shadow-2xl max-h-[90vh] overflow-y-auto">
+        
+        <!-- Success Icon -->
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        
+        <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Confirmed!</h2>
+        <p class="text-gray-600 mb-6" x-text="checkoutResult?.message"></p>
+        
+        <!-- Rental Details -->
+        <div class="bg-gray-50 rounded-xl p-4 mb-6 text-left">
+          <p class="font-medium text-gray-800 mb-3">Rentals Created:</p>
+          <template x-for="rental in checkoutResult?.rentals" :key="rental.rental_id">
+            <div class="py-2 border-b border-gray-200 last:border-0">
+              <p class="font-medium text-gray-800" x-text="rental.collectible_name"></p>
+              <p class="text-sm text-gray-600">
+                <span x-text="rental.quantity"></span> units × <span x-text="rental.days"></span> days
+                <span class="text-accent-500 font-medium ml-2">₱<span x-text="rental.total_price.toLocaleString()"></span></span>
+              </p>
+              <p class="text-sm text-gray-500">📍 Pickup: <span x-text="rental.store_name"></span></p>
+            </div>
+          </template>
+        </div>
+        
+        <!-- Total -->
+        <div class="bg-brand-50 border border-brand-200 rounded-xl p-4 mb-6">
+          <span class="text-brand-800 font-medium">Total Amount</span>
+          <p class="text-2xl font-bold text-brand-900">₱<span x-text="checkoutResult?.total_price?.toLocaleString()"></span></p>
+        </div>
+        
+        <!-- Action Buttons -->
+        <p class="text-gray-600 mb-4">Proceed to payment to complete your order</p>
+        <a :href="'/payment?rental_ids=' + checkoutResult?.rental_ids?.join(',')" 
+           class="inline-block bg-accent-500 hover:bg-accent-600 text-white px-8 py-3 rounded-lg font-medium transition-colors w-full">
+          💳 Complete Payment Now
+        </a>
+        <p class="text-xs text-gray-500 mt-4">⚠️ Your units are reserved for 1 minute. Please complete payment to confirm.</p>
+      </div>
+    </div>
+
+    <!-- ==================== ERROR TOAST ==================== -->
+    <div x-show="error" 
+         x-transition
+         class="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-4 rounded-xl shadow-lg max-w-md">
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <span x-text="error"></span>
+        <button @click="error = null" class="ml-auto">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="bg-brand-900 text-white py-8 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <p class="text-white/70">© 2026 MongoCollectibles. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== JAVASCRIPT ==================== -->
+  <script>
+    function cartApp() {
+      return {
+        // ========================================
+        // DATA
+        // ========================================
+        cart: null,
+        loading: true,
+        error: null,
+        checkingOut: false,
+        showSuccess: false,
+        checkoutResult: null,
+        
+        // Auth state
+        isLoggedIn: false,
+        user: null,
+        token: null,
+
+        // ========================================
+        // COMPUTED
+        // ========================================
+        
+        get canCheckout() {
+          if (!this.cart || this.cart.items.length === 0) return false;
+          if (this.cart.total_price > 10000000) return false;
+          
+          // Check if any item exceeds available stock
+          for (const item of this.cart.items) {
+            if (item.quantity > item.available_units) return false;
+          }
+          
+          return true;
+        },
+
+        // ========================================
+        // LIFECYCLE
+        // ========================================
+        
+        async init() {
+          await this.checkAuth();
+          if (this.isLoggedIn) {
+            await this.loadCart();
+          }
+          this.loading = false;
+        },
+
+        // ========================================
+        // AUTHENTICATION
+        // ========================================
+        
+        async checkAuth() {
+          const token = localStorage.getItem('token');
+          if (!token) {
+            this.isLoggedIn = false;
+            return;
+          }
+          
+          try {
+            const response = await fetch('/api/me', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.token = token;
+              this.user = data.user;
+              this.isLoggedIn = true;
+            } else {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+              this.isLoggedIn = false;
+            }
+          } catch (error) {
+            console.error('Auth check failed:', error);
+            this.isLoggedIn = false;
+          }
+        },
+        
+        logout() {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          this.isLoggedIn = false;
+          this.user = null;
+          this.token = null;
+          window.location.href = '/';
+        },
+
+        // ========================================
+        // CART OPERATIONS
+        // ========================================
+        
+        async loadCart() {
+          try {
+            const response = await fetch('/api/cart', {
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            
+            if (response.ok) {
+              this.cart = await response.json();
+            }
+          } catch (error) {
+            console.error('Failed to load cart:', error);
+            this.error = 'Failed to load cart';
+          }
+        },
+        
+        async updateQuantity(item, delta) {
+          const newQuantity = item.quantity + delta;
+          if (newQuantity < 1 || newQuantity > item.available_units) return;
+          
+          await this.updateItem(item.id, newQuantity, item.days);
+        },
+        
+        async updateDays(item, days) {
+          const newDays = parseInt(days);
+          if (newDays < 1 || newDays > 30) return;
+          
+          await this.updateItem(item.id, item.quantity, newDays);
+        },
+        
+        async updateItem(itemId, quantity, days) {
+          try {
+            const response = await fetch(`/api/cart/items/${itemId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.token
+              },
+              body: JSON.stringify({ quantity, days })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.cart = data.cart;
+            } else {
+              const data = await response.json();
+              this.error = data.error || 'Failed to update item';
+            }
+          } catch (error) {
+            console.error('Failed to update item:', error);
+            this.error = 'Failed to update item';
+          }
+        },
+        
+        async removeItem(itemId) {
+          try {
+            const response = await fetch(`/api/cart/items/${itemId}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              this.cart = data.cart;
+            } else {
+              this.error = 'Failed to remove item';
+            }
+          } catch (error) {
+            console.error('Failed to remove item:', error);
+            this.error = 'Failed to remove item';
+          }
+        },
+        
+        async clearCart() {
+          if (!confirm('Are you sure you want to clear your cart?')) return;
+          
+          try {
+            const response = await fetch('/api/cart', {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + this.token }
+            });
+            
+            if (response.ok) {
+              this.cart = { items: [], total_items: 0, total_price: 0, item_count: 0 };
+            } else {
+              this.error = 'Failed to clear cart';
+            }
+          } catch (error) {
+            console.error('Failed to clear cart:', error);
+            this.error = 'Failed to clear cart';
+          }
+        },
+
+        // ========================================
+        // CHECKOUT
+        // ========================================
+        
+        async checkout() {
+          if (!this.canCheckout) return;
+          
+          this.checkingOut = true;
+          this.error = null;
+          
+          try {
+            const response = await fetch('/api/cart/checkout', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + this.token
+              }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              this.checkoutResult = data;
+              this.showSuccess = true;
+              this.cart = { items: [], total_items: 0, total_price: 0, item_count: 0 };
+            } else {
+              this.error = data.error || 'Checkout failed';
+            }
+          } catch (error) {
+            console.error('Checkout failed:', error);
+            this.error = 'Checkout failed. Please try again.';
+          } finally {
+            this.checkingOut = false;
+          }
+        },
+
+        // ========================================
+        // HELPERS
+        // ========================================
+        
+        getPaymentLimitMessage() {
+          const total = this.cart?.total_price || 0;
+          if (total > 100000) {
+            return 'Only Credit/Debit cards available for orders over ₱100,000';
+          } else if (total > 50000) {
+            return 'BPI not available for orders over ₱50,000. Other methods available.';
+          }
+          return '';
+        }
+      }
+    }
+  </script>
+
+</body>
+</html>

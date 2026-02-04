@@ -30,6 +30,7 @@ func CreatePaymentHandler(c *gin.Context) {
 	// Parse request body
 	var req struct {
 		RentalID      uint   `json:"rental_id" binding:"required"`
+		RentalIDs     []uint `json:"rental_ids"`                        // Optional: for cart checkout with multiple rentals
 		PaymentMethod string `json:"payment_method" binding:"required"` // card, gcash, grab_pay, dob_ubp, dob_bpi
 
 		// Billing details
@@ -76,64 +77,83 @@ func CreatePaymentHandler(c *gin.Context) {
 		return
 	}
 
-	// Verify rental belongs to user
-	rental, err := service.GetRentalByID(req.RentalID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Rental not found",
-		})
-		return
+	// Determine rental IDs to process
+	rentalIDs := req.RentalIDs
+	if len(rentalIDs) == 0 {
+		rentalIDs = []uint{req.RentalID}
 	}
 
-	if rental.UserID != userID.(uint) {
-		c.JSON(http.StatusForbidden, gin.H{
-			"success": false,
-			"error":   "Access denied",
-		})
-		return
-	}
+	// Calculate total amount and verify all rentals
+	totalAmount := 0
+	for _, rentalID := range rentalIDs {
+		rental, err := service.GetRentalByID(rentalID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"success": false,
+				"error":   "Rental not found: " + strconv.Itoa(int(rentalID)),
+			})
+			return
+		}
 
-	// Check if rental is still valid for payment (not expired)
-	isValid, err := service.CheckAndExpireRental(req.RentalID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to check rental status",
-		})
-		return
-	}
+		if rental.UserID != userID.(uint) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"error":   "Access denied",
+			})
+			return
+		}
 
-	if !isValid {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Rental has expired. Please create a new order.",
-		})
-		return
-	}
+		// Check if rental is still valid for payment (not expired)
+		isValid, err := service.CheckAndExpireRental(rentalID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to check rental status",
+			})
+			return
+		}
 
-	// Only allow payment for pending_payment rentals
-	if rental.Status != "pending_payment" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "This rental cannot be paid. Status: " + rental.Status,
-		})
-		return
+		if !isValid {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Rental has expired. Please create a new order.",
+			})
+			return
+		}
+
+		// Only allow payment for pending_payment rentals
+		if rental.Status != "pending_payment" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"error":   "Rental cannot be paid. Status: " + rental.Status,
+			})
+			return
+		}
+
+		totalAmount += rental.TotalPrice
 	}
 
 	// Set default redirect URLs if not provided
 	baseURL := "http://localhost:8080"
+	rentalIDsStr := ""
+	for i, id := range rentalIDs {
+		if i > 0 {
+			rentalIDsStr += ","
+		}
+		rentalIDsStr += strconv.Itoa(int(id))
+	}
 	if req.SuccessURL == "" {
-		req.SuccessURL = baseURL + "/payment/success?rental_id=" + strconv.Itoa(int(req.RentalID))
+		req.SuccessURL = baseURL + "/payment/success?rental_ids=" + rentalIDsStr
 	}
 	if req.FailedURL == "" {
-		req.FailedURL = baseURL + "/payment/failed?rental_id=" + strconv.Itoa(int(req.RentalID))
+		req.FailedURL = baseURL + "/payment/failed?rental_ids=" + rentalIDsStr
 	}
 
-	// Create payment
+	// Create payment (use first rental as primary)
 	result, err := service.CreatePayment(service.PaymentRequest{
-		RentalID:       req.RentalID,
-		Amount:         rental.TotalPrice, // Use rental's total price
+		RentalID:       rentalIDs[0], // Primary rental
+		RentalIDs:      rentalIDs,    // All rentals for this payment
+		Amount:         totalAmount,  // Total of all rentals
 		PaymentMethod:  req.PaymentMethod,
 		BillingName:    req.BillingName,
 		BillingEmail:   req.BillingEmail,

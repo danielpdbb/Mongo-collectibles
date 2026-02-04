@@ -335,8 +335,8 @@
               </a>
             </div>
             
-            <!-- Rental Details -->
-            <div class="flex gap-4 mb-4 pb-4 border-b border-gray-200">
+            <!-- Rental Details - Single Item -->
+            <div x-show="!isMultiRental" class="flex gap-4 mb-4 pb-4 border-b border-gray-200">
               <img 
                 :src="rental?.image_url" 
                 :alt="rental?.collectible"
@@ -349,6 +349,30 @@
                 </p>
                 <p class="text-xs text-brand-700 mt-1">📍 <span x-text="rental?.store"></span></p>
               </div>
+            </div>
+
+            <!-- Rental Details - Multiple Items from Cart -->
+            <div x-show="isMultiRental" class="mb-4 pb-4 border-b border-gray-200 space-y-3">
+              <p class="text-sm font-medium text-gray-700 mb-2">Items (<span x-text="rentals.length"></span>):</p>
+              <template x-for="r in rentals" :key="r.id">
+                <div class="flex gap-3 py-2 border-b border-gray-100 last:border-0">
+                  <img 
+                    :src="r.image_url" 
+                    :alt="r.collectible"
+                    onerror="this.src='https://via.placeholder.com/60?text=No+Image'"
+                    class="w-12 h-12 object-cover rounded-lg flex-shrink-0">
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-medium text-gray-800 text-sm truncate" x-text="r.collectible"></h4>
+                    <p class="text-xs text-gray-500">
+                      <span x-text="r.quantity"></span> × <span x-text="r.days"></span> days
+                    </p>
+                    <p class="text-xs text-brand-700">📍 <span x-text="r.store"></span></p>
+                  </div>
+                  <div class="text-right">
+                    <p class="text-sm font-medium text-accent-500">₱<span x-text="r.total_price?.toLocaleString()"></span></p>
+                  </div>
+                </div>
+              </template>
             </div>
             
             <!-- Price -->
@@ -437,6 +461,8 @@
         // ========================================
         
         rental: null,
+        rentals: [],          // For multiple rentals from cart
+        isMultiRental: false, // Whether this is a multi-rental payment
         loading: true,
         error: null,
         submitting: false,
@@ -503,17 +529,28 @@
             return;
           }
 
-          // Get rental ID from URL
+          // Get rental ID(s) from URL - supports both single and multiple
           const params = new URLSearchParams(window.location.search);
           const rentalId = params.get('rental_id');
+          const rentalIds = params.get('rental_ids');
           
-          if (!rentalId) {
+          if (rentalIds) {
+            // Multiple rentals from cart checkout
+            const ids = rentalIds.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            if (ids.length === 0) {
+              this.error = 'No valid rental IDs provided';
+              this.loading = false;
+              return;
+            }
+            await this.loadMultipleRentals(ids);
+          } else if (rentalId) {
+            // Single rental
+            await this.loadRental(rentalId);
+          } else {
             this.error = 'No rental ID provided';
             this.loading = false;
             return;
           }
-
-          await this.loadRental(rentalId);
 
           // Auto-select first available payment method based on amount
           this.selectFirstAvailableMethod();
@@ -545,6 +582,8 @@
             
             if (data.success) {
               this.rental = data.rental;
+              this.rentals = [data.rental];
+              this.isMultiRental = false;
               
               // Check if already expired
               if (this.rental.status === 'expired') {
@@ -562,6 +601,75 @@
             }
           } catch (err) {
             console.error('Failed to load rental:', err);
+            this.error = 'Failed to load rental details';
+          }
+          this.loading = false;
+        },
+
+        async loadMultipleRentals(rentalIds) {
+          try {
+            const rentals = [];
+            let totalPrice = 0;
+            let minTimeRemaining = null;
+            
+            for (const id of rentalIds) {
+              const response = await fetch(`/api/rentals/${id}`, {
+                headers: { 'Authorization': 'Bearer ' + this.token }
+              });
+              
+              const data = await response.json();
+              
+              if (data.success) {
+                // Check if any rental is not pending_payment
+                if (data.rental.status === 'expired') {
+                  this.isExpired = true;
+                  this.error = 'One or more orders have expired. Please create a new order.';
+                  this.loading = false;
+                  return;
+                } else if (data.rental.status !== 'pending_payment') {
+                  this.error = 'One or more rentals cannot be paid. Status: ' + data.rental.status;
+                  this.loading = false;
+                  return;
+                }
+                
+                rentals.push(data.rental);
+                totalPrice += data.rental.total_price;
+                
+                // Track minimum time remaining
+                if (data.rental.time_remaining !== null && data.rental.time_remaining !== undefined) {
+                  if (minTimeRemaining === null || data.rental.time_remaining < minTimeRemaining) {
+                    minTimeRemaining = data.rental.time_remaining;
+                  }
+                }
+              } else {
+                this.error = data.error || 'Failed to load rental ' + id;
+                this.loading = false;
+                return;
+              }
+            }
+            
+            this.rentals = rentals;
+            this.isMultiRental = true;
+            
+            // Create a combined "rental" object for display
+            this.rental = {
+              id: rentalIds.join(','),
+              collectible: rentals.length + ' item(s)',
+              image_url: rentals[0]?.image_url,
+              quantity: rentals.reduce((sum, r) => sum + r.quantity, 0),
+              days: rentals.map(r => r.days).join(', '),
+              store: rentals[0]?.store || 'Multiple stores',
+              total_price: totalPrice,
+              status: 'pending_payment'
+            };
+            
+            // Start timer with minimum remaining time
+            if (minTimeRemaining !== null) {
+              this.timeRemaining = minTimeRemaining;
+              this.startTimer();
+            }
+          } catch (err) {
+            console.error('Failed to load rentals:', err);
             this.error = 'Failed to load rental details';
           }
           this.loading = false;
@@ -745,9 +853,18 @@
           this.paymentError = null;
 
           try {
+            // Determine rental IDs
+            const rentalIds = this.isMultiRental 
+              ? this.rentals.map(r => r.id) 
+              : [this.rental.id];
+            
+            // For multi-rental, we need to pay for first rental, others will be linked
+            const primaryRentalId = rentalIds[0];
+
             // Build request body
             const body = {
-              rental_id: this.rental.id,
+              rental_id: primaryRentalId,
+              rental_ids: rentalIds, // Include all rental IDs for multi-rental
               payment_method: this.paymentMethod,
               billing_name: this.billing.name,
               billing_email: this.billing.email,
@@ -756,8 +873,8 @@
               billing_city: this.billing.city,
               billing_state: this.billing.state,
               billing_postal: this.billing.postal,
-              success_url: window.location.origin + '/payment/success?rental_id=' + this.rental.id,
-              failed_url: window.location.origin + '/payment/failed?rental_id=' + this.rental.id
+              success_url: window.location.origin + '/payment/success?rental_ids=' + rentalIds.join(','),
+              failed_url: window.location.origin + '/payment/failed?rental_ids=' + rentalIds.join(',')
             };
 
             // Add card details if card payment
@@ -787,7 +904,7 @@
                 window.location.href = data.checkout_url;
               } else if (data.status === 'paid') {
                 // Direct success (rare for cards)
-                window.location.href = '/payment/success?rental_id=' + this.rental.id;
+                window.location.href = '/payment/success?rental_ids=' + rentalIds.join(',');
               } else {
                 // Unknown state
                 this.paymentError = 'Unexpected payment state: ' + data.status;
