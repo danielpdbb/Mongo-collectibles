@@ -41,44 +41,280 @@ A premium MCU collectibles rental platform built with Go, featuring PayMongo pay
 
 ## 🏗️ Architecture
 
+### System Overview
+
+MongoCollectibles follows a **4-tier layered architecture** with clear separation of concerns, ensuring maintainability, testability, and scalability.
+
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                      PRESENTATION LAYER                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
-│  │  index.html │  │  cart.html  │  │ payment.html│  ...      │
-│  │  (Catalog)  │  │  (Cart)     │  │ (Checkout)  │           │
-│  └─────────────┘  └─────────────┘  └─────────────┘           │
-│        ↓                ↓                ↓                    │
-│  [Alpine.js + Tailwind CSS + Fetch API]                      │
-└──────────────────────────────────────────────────────────────┘
-                              ↓ HTTP
-┌──────────────────────────────────────────────────────────────┐
-│                        API LAYER (Gin)                        │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐              │
-│  │ handlers.go│  │cart_handler│  │payment_han │  ...         │
-│  └────────────┘  └────────────┘  └────────────┘              │
-│        ↓                ↓                ↓                    │
-│  [JWT Authentication Middleware]                              │
-└──────────────────────────────────────────────────────────────┘
-                              ↓
-┌──────────────────────────────────────────────────────────────┐
-│                      SERVICE LAYER                            │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐              │
-│  │ allocation │  │   cart.go  │  │ paymongo.go│  ...         │
-│  │    .go     │  │            │  │            │              │
-│  └────────────┘  └────────────┘  └────────────┘              │
-│        ↓                ↓                ↓                    │
-│  [Business Logic + External API Calls]                        │
-└──────────────────────────────────────────────────────────────┘
-                              ↓
-┌──────────────────────────────────────────────────────────────┐
-│                    DATA LAYER (GORM + PostgreSQL)             │
-│  ┌────────────────────────────────────────────────────────┐  │
-│  │ Users | Stores | Warehouses | Collectibles | Units     │  │
-│  │ Carts | CartItems | Rentals | RentalUnits | Payments   │  │
-│  └────────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                        PRESENTATION LAYER                             │
+│                         (Static HTML + JS)                            │
+│                                                                       │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────┐  │
+│  │  index.html  │  │  cart.html   │  │ payment.html │  │ rentals │  │
+│  │  (Catalog)   │  │  (Shopping)  │  │  (Checkout)  │  │  .html  │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────┘  │
+│                                                                       │
+│  Technology: Alpine.js + Tailwind CSS + Fetch API                    │
+│  Responsibilities:                                                    │
+│   - User interface rendering                                         │
+│   - Client-side state management                                     │
+│   - Form validation & user interactions                              │
+│   - Real-time price calculations                                     │
+└───────────────────────────────────────────────────────────────────────┘
+                                    ↓ HTTP/REST
+┌───────────────────────────────────────────────────────────────────────┐
+│                           API LAYER (Gin)                             │
+│                         /internal/api/                                │
+│                                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │  handlers.go     │  │ cart_handlers.go │  │payment_handlers  │   │
+│  │  • Catalog       │  │  • Add to cart   │  │  • Create payment│   │
+│  │  • Quote API     │  │  • Update items  │  │  • Verify status │   │
+│  │  • Stores list   │  │  • Checkout      │  │  • Webhooks      │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+│                                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐                          │
+│  │ auth_handlers.go │  │rental_handlers.go│                          │
+│  │  • Register      │  │  • List rentals  │                          │
+│  │  • Login         │  │  • Rental detail │                          │
+│  │  • Get user      │  │  • Cancel rental │                          │
+│  └──────────────────┘  └──────────────────┘                          │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐   │
+│  │            middleware.go - JWT Authentication                 │   │
+│  │  • Token validation                                           │   │
+│  │  • User context injection                                     │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  Responsibilities:                                                    │
+│   - Request routing & validation                                     │
+│   - Authentication & authorization                                   │
+│   - DTO mapping (JSON ↔ Domain models)                               │
+│   - Error handling & HTTP responses                                  │
+└───────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│                         SERVICE LAYER                                 │
+│                        /internal/service/                             │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │  allocation.go - Smart Warehouse Allocation Algorithm        │    │
+│  │  • Nearest-warehouse-first algorithm                         │    │
+│  │  • Distance-based unit selection                             │    │
+│  │  • Availability checking                                     │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+│                                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   pricing.go     │  │    cart.go       │  │cart_checkout.go  │   │
+│  │  • Rate calc     │  │  • Cart CRUD     │  │  • Multi-item    │   │
+│  │  • Discount      │  │  • Item update   │  │    checkout      │   │
+│  │  • Size pricing  │  │  • Validation    │  │  • Atomic ops    │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+│                                                                       │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   rental.go      │  │  paymongo.go     │  │    auth.go       │   │
+│  │  • Create rental │  │  • Create intent │  │  • JWT generate  │   │
+│  │  • Expire timer  │  │  • Attach source │  │  • Password hash │   │
+│  │  • Cancel rental │  │  • Verify status │  │  • User login    │   │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘   │
+│                                                                       │
+│  Responsibilities:                                                    │
+│   - Business logic & rules                                           │
+│   - Transaction orchestration                                        │
+│   - External API integration (PayMongo)                              │
+│   - Domain model operations                                          │
+└───────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│                   DATA LAYER (Repository + Domain)                    │
+│                   /internal/repository/ + /internal/domain/           │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐   │
+│  │  database.go - GORM Connection & Configuration               │   │
+│  │  • PostgreSQL connection pooling                             │   │
+│  │  • Auto-migration                                            │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  Domain Models (/internal/domain/):                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐   │
+│  │   model.go       │  │    user.go       │  │    cart.go       │   │
+│  │  • Store         │  │  • User          │  │  • Cart          │   │
+│  │  • Warehouse     │  │  • BillingDetail │  │  • CartItem      │   │
+│  │  • Collectible   │  └──────────────────┘  └──────────────────┘   │
+│  │  • Unit                                                           │
+│  │  • Distance      │  ┌──────────────────┐  ┌──────────────────┐   │
+│  └──────────────────┘  │   rental.go      │  │  payment.go      │   │
+│                        │  • Rental        │  │  • Payment       │   │
+│                        │  • RentalUnit    │  └──────────────────┘   │
+│                        └──────────────────┘                          │
+│                                                                       │
+│  ┌───────────────────────────────────────────────────────────────┐   │
+│  │  seed.go - Database Initialization                           │   │
+│  │  • 3 Stores (A, B, C)                                        │   │
+│  │  • 3 Warehouses                                              │   │
+│  │  • 30 Collectibles (10 per size)                            │   │
+│  │  • 9 Distance mappings                                       │   │
+│  └───────────────────────────────────────────────────────────────┘   │
+│                                                                       │
+│  Technology: GORM v1.31 + PostgreSQL 15+                             │
+│  Responsibilities:                                                    │
+│   - Data persistence & retrieval                                     │
+│   - Transaction management                                           │
+│   - Database schema definitions                                      │
+└───────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌───────────────────────────────────────────────────────────────────────┐
+│                         EXTERNAL SERVICES                             │
+│                                                                       │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │                    PayMongo API                              │    │
+│  │  • Payment Intents API                                       │    │
+│  │  • Payment Methods (Cards, GCash, GrabPay, Banks)           │    │
+│  │  • 3DS Authentication                                        │    │
+│  │  • Webhook notifications                                     │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────────────────────┘
 ```
+
+### Architectural Patterns
+
+#### 1. **Layered Architecture**
+- Clean separation between presentation, API, service, and data layers
+- Each layer has well-defined responsibilities
+- Dependencies flow downward (no circular dependencies)
+
+#### 2. **Repository Pattern**
+- Database access abstracted through domain models
+- GORM ORM for type-safe queries
+- Centralized in `/internal/repository/`
+
+#### 3. **Service Layer Pattern**
+- Business logic isolated from API handlers
+- Reusable across different endpoints
+- Transaction orchestration and external service integration
+
+#### 4. **JWT Authentication**
+- Stateless authentication with middleware
+- Token-based authorization for protected routes
+- User context propagation
+
+### Data Flow Examples
+
+#### 🛒 Shopping Cart Checkout Flow
+```
+User (Browser) → [POST /api/cart/checkout]
+                        ↓
+            cart_handlers.go (API)
+            • Validate JWT token
+            • Extract user ID
+                        ↓
+         cart_checkout.go (Service)
+         • Begin DB transaction
+         • For each cart item:
+           ├─→ pricing.go: Calculate price
+           ├─→ allocation.go: Find nearest warehouse
+           └─→ rental.go: Create rental + allocate units
+         • Clear cart
+         • Commit transaction
+                        ↓
+         paymongo.go (Service)
+         • Create PayMongo payment intent
+         • Attach payment method
+         • Return payment URL
+                        ↓
+            HTTP Response → User redirected to payment
+```
+
+#### 📦 Smart Allocation Algorithm
+```
+Request: Rent item X at Store B
+
+allocation.go:
+  1. Query all available units for item X
+     SELECT * FROM collectible_units 
+     WHERE collectible_id = X AND is_available = true
+  
+  2. Query distances from Store B to all warehouses
+     SELECT warehouse_id, distance FROM warehouse_distances 
+     WHERE store_id = B
+  
+  3. Find unit with minimum distance:
+     For each unit:
+       - Get warehouse distance to Store B
+       - Track minimum distance
+       - Select unit from nearest warehouse
+  
+  4. Return selected unit (or false if none available)
+```
+
+#### 💳 Payment Verification Flow
+```
+PayMongo Webhook → [POST /api/payments/:id/verify]
+                        ↓
+         payment_handlers.go (API)
+         • Verify request authenticity
+         • Extract payment status
+                        ↓
+            paymongo.go (Service)
+            • Query PayMongo API
+            • Validate payment status
+                        ↓
+            rental.go (Service)
+            IF payment succeeded:
+              • Update rental status → "active"
+              • Clear expiration timer
+            ELSE IF payment failed/expired:
+              • Update rental status → "cancelled"
+              • Release allocated units
+              • Set is_available = true
+                        ↓
+         Update Payment record in DB
+         Set status = "paid" | "failed"
+```
+
+### Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Go + Gin** | High performance, excellent concurrency, simple HTTP routing |
+| **PostgreSQL** | ACID compliance for inventory management, relational data integrity |
+| **GORM** | Type-safe ORM, auto-migrations, handles complex relationships |
+| **JWT Authentication** | Stateless, scalable, works across distributed systems |
+| **Alpine.js** | Lightweight reactivity without build step, perfect for server-rendered apps |
+| **Nearest-warehouse algorithm** | Minimizes delivery distance, optimizes logistics costs |
+| **Atomic transactions** | Ensures inventory consistency during multi-item checkouts |
+| **Payment timer** | Prevents inventory locking, automatic unit release on timeout |
+
+### Security Considerations
+
+- 🔐 **Password Hashing**: bcrypt with salt
+- 🎫 **JWT Tokens**: Signed with secret key, expiration validation
+- 🛡️ **SQL Injection Protection**: GORM parameterized queries
+- 🔒 **HTTPS**: TLS encryption for production (configured at reverse proxy)
+- 🚫 **CORS**: Configurable origins in Gin middleware
+- 💰 **PayMongo 3DS**: 3D Secure authentication for card payments
+- ⏱️ **Payment Expiration**: Automatic cancellation after timeout
+
+### Scalability Considerations
+
+#### Vertical Scaling
+- PostgreSQL connection pooling (configurable in GORM)
+- Gin performance optimizations (JSON serialization, routing)
+- Database indexing on foreign keys and frequent queries
+
+#### Horizontal Scaling
+- Stateless API design (JWT tokens)
+- Database connection pool per instance
+- Load balancer compatible (no session state)
+- External state stored in PostgreSQL (carts, rentals)
+
+#### Future Optimizations
+- Redis caching for catalog data
+- Message queue for webhook processing (RabbitMQ/Kafka)
+- CDN for static assets (images, CSS, JS)
+- Read replicas for PostgreSQL
+- Microservices architecture (separate payment/inventory services)
 
 ## 📊 Database Schema
 
@@ -353,10 +589,6 @@ For production, update `.env`:
 PAYMONGO_SECRET_KEY=sk_live_xxxxxxxxxxxx
 PAYMONGO_PUBLIC_KEY=pk_live_xxxxxxxxxxxx
 ```
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
